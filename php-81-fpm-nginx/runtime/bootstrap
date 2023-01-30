@@ -1,0 +1,14 @@
+#!/bin/bash
+
+if [ ! -d '/tmp/session' ]; then
+  mkdir -p /tmp/session
+fi
+
+if [ -f "/var/task/bootstrap" ]; then
+  echo "Found and Running '/var/task/bootstrap' instead of '/opt/bootstrap'"
+  exec -- /var/task/bootstrap
+else
+  echo "Running '/opt/bootstrap' when not found '/var/task/bootstrap'"
+  /opt/php/bin/php-fpm --force-stderr
+  exec /opt/nginx/bin/nginx -g "daemon off;"
+fi

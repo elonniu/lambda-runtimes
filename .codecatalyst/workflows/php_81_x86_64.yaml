@@ -1,0 +1,88 @@
+Name: php_81_x86_64
+RunMode: SUPERSEDED
+SchemaVersion: "1.0"
+Triggers:
+  - Type: PUSH
+    Branches:
+      - main
+Compute:
+  Type: EC2
+  Fleet: build_servers
+Actions:
+  publish_devel_image:
+    Identifier: aws/build@v1
+    Inputs:
+      Sources:
+        - WorkflowSource
+    Outputs:
+      AutoDiscoverReports:
+        Enabled: false
+        ReportNamePrefix: rpt
+    Configuration:
+      Steps:
+        - Run: export ARCH=x86_64
+        - Run: export PLATFORM=linux/amd64
+        - Run: export DIR=php-81-fpm-nginx
+        - Run: export IMAGE=php
+        - Run: export TAG_PRE=devel-81-
+        - Run: export FILE_PRE=devel-
+        - Run: export DOCKER_USER_NAME=${Secrets.DOCKER_USER_NAME}
+        - Run: export DOCKER_PASSWORD=${Secrets.DOCKER_PASSWORD}
+        - Run: export SLACK_URL=${Secrets.SLACK_URL}
+        - Run: . ./.codecatalyst/scripts/publish_ecr_image.sh
+    Environment:
+      Name: ecr_prod_environment
+      Connections:
+        - Name: "ecr_prod"
+          Role: CodeCatalystPreviewDevelopmentAdministrator-621gd9
+  publish_prod_image:
+    DependsOn:
+      - publish_devel_image
+    Identifier: aws/build@v1
+    Inputs:
+      Sources:
+        - WorkflowSource
+    Outputs:
+      AutoDiscoverReports:
+        Enabled: false
+        ReportNamePrefix: rpt
+    Configuration:
+      Steps:
+        - Run: export ARCH=x86_64
+        - Run: export PLATFORM=linux/amd64
+        - Run: export DIR=php-81-fpm-nginx
+        - Run: export IMAGE=php
+        - Run: export TAG_PRE=81-
+        - Run: export FILE_PRE=prod-
+        - Run: export DOCKER_USER_NAME=${Secrets.DOCKER_USER_NAME}
+        - Run: export DOCKER_PASSWORD=${Secrets.DOCKER_PASSWORD}
+        - Run: export SLACK_URL=${Secrets.SLACK_URL}
+        - Run: . ./.codecatalyst/scripts/publish_ecr_image.sh
+    Environment:
+      Name: ecr_prod_environment
+      Connections:
+        - Name: "ecr_prod"
+          Role: CodeCatalystPreviewDevelopmentAdministrator-621gd9
+  publish_lambda_layer:
+    DependsOn:
+      - publish_prod_image
+    Identifier: aws/build@v1
+    Inputs:
+      Sources:
+        - WorkflowSource
+    Outputs:
+      AutoDiscoverReports:
+        Enabled: false
+        ReportNamePrefix: rpt
+    Configuration:
+      Steps:
+        - Run: export ARCH=x86_64
+        - Run: export PLATFORM=linux/amd64
+        - Run: export DIR=php-81-fpm-nginx
+        - Run: export SLACK_URL=${Secrets.SLACK_URL}
+        - Run: . ./.codecatalyst/scripts/publish_lambda_layer.sh
+    Environment:
+      Name: layer_prod_environment
+      Connections:
+        - Name: "layer-prod"
+          Role: CodeCatalystPreviewDevelopmentAdministrator-vyv35j
