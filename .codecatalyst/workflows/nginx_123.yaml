@@ -25,11 +25,11 @@ Actions:
         - Run: export SLACK_URL=${Secrets.SLACK_URL}
         - Run: export IMAGE=nginx
         - Run: export CONTEXT_DIR=nginx-123
-        - Run: export TAG=devel-1.23-2023.2.3.2
+        - Run: export TAG=devel-1.23-2023.2.3.3
         - Run: export DOCKER_FILE=devel.Dockerfile
         - Run: . ./.codecatalyst/scripts/login_docker.sh
         - Run: . ./.codecatalyst/scripts/publish_ecr_image.sh
-        - Run: export TAG=1.23-2023.2.3.2
+        - Run: export TAG=1.23-2023.2.3.3
         - Run: export DOCKER_FILE=prod.Dockerfile
         - Run: . ./.codecatalyst/scripts/publish_ecr_image.sh
         - Run: . ./.codecatalyst/scripts/publish_ecr_manifest.sh
@@ -54,7 +54,7 @@ Actions:
         - Run: export SLACK_URL=${Secrets.SLACK_URL}
         - Run: export IMAGE=nginx
         - Run: export CONTEXT_DIR=nginx-123
-        - Run: export TAG=1.23-2023.2.3.2
+        - Run: export TAG=1.23-2023.2.3.3
         - Run: export COMPATIBLE_RUNTIMES="provided provided.al2 java11"
         - Run: . ./.codecatalyst/scripts/publish_lambda_layer.sh
     Environment:

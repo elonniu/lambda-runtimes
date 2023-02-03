@@ -1,6 +1,6 @@
 FROM public.ecr.aws/awsguru/devel AS devel
 FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.6.1 AS adapter
-FROM public.ecr.aws/awsguru/nginx:devel-1.23-2023.2.3.2 AS nginx
+FROM public.ecr.aws/awsguru/nginx:devel-1.23-2023.2.3.3 AS nginx
 
 FROM public.ecr.aws/lambda/provided:al2
 

@@ -3,7 +3,7 @@ FROM public.ecr.aws/lambda/provided:al2 AS al2
 FROM public.ecr.aws/lambda/provided AS provided
 FROM public.ecr.aws/lambda/java:11 AS java11
 FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.6.1 AS adapter
-FROM public.ecr.aws/awsguru/php:devel-81-2023.2.3.2 AS builder
+FROM public.ecr.aws/awsguru/php:devel-81-2023.2.3.3 AS builder
 
 # Your builders code here
 # RUN pecl install intl

@@ -1,5 +1,5 @@
 FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.6.1 AS adapter
-FROM public.ecr.aws/awsguru/php:devel-74-2023.2.3.2 AS builder
+FROM public.ecr.aws/awsguru/php:devel-74-2023.2.3.3 AS builder
 
 # Your builders code here
 # RUN pecl install intl
