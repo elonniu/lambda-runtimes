@@ -1,0 +1,64 @@
+Name: nginx_123
+RunMode: SUPERSEDED
+SchemaVersion: "1.0"
+Triggers:
+  - Type: PUSH
+    Branches:
+      - main
+Compute:
+  Type: EC2
+  Fleet: build_servers
+Actions:
+  publish_ecr_image:
+    Identifier: aws/build@v1
+    Inputs:
+      Sources:
+        - WorkflowSource
+    Outputs:
+      AutoDiscoverReports:
+        Enabled: false
+        ReportNamePrefix: rpt
+    Configuration:
+      Steps:
+        - Run: export DOCKER_USER_NAME=${Secrets.DOCKER_USER_NAME}
+        - Run: export DOCKER_PASSWORD=${Secrets.DOCKER_PASSWORD}
+        - Run: export SLACK_URL=${Secrets.SLACK_URL}
+        - Run: export IMAGE=nginx
+        - Run: export CONTEXT_DIR=nginx-123
+        - Run: export TAG=devel-1.23-2023.2.3.2
+        - Run: export DOCKER_FILE=devel.Dockerfile
+        - Run: . ./.codecatalyst/scripts/login_docker.sh
+        - Run: . ./.codecatalyst/scripts/publish_ecr_image.sh
+        - Run: export TAG=1.23-2023.2.3.2
+        - Run: export DOCKER_FILE=prod.Dockerfile
+        - Run: . ./.codecatalyst/scripts/publish_ecr_image.sh
+        - Run: . ./.codecatalyst/scripts/publish_ecr_manifest.sh
+    Environment:
+      Name: ecr_prod_environment
+      Connections:
+        - Name: "ecr_prod"
+          Role: CodeCatalystPreviewDevelopmentAdministrator-621gd9
+  publish_lambda_layer:
+    DependsOn:
+      - publish_ecr_image
+    Identifier: aws/build@v1
+    Inputs:
+      Sources:
+        - WorkflowSource
+    Outputs:
+      AutoDiscoverReports:
+        Enabled: false
+        ReportNamePrefix: rpt
+    Configuration:
+      Steps:
+        - Run: export SLACK_URL=${Secrets.SLACK_URL}
+        - Run: export IMAGE=nginx
+        - Run: export CONTEXT_DIR=nginx-123
+        - Run: export TAG=1.23-2023.2.3.2
+        - Run: export COMPATIBLE_RUNTIMES="provided provided.al2 java11"
+        - Run: . ./.codecatalyst/scripts/publish_lambda_layer.sh
+    Environment:
+      Name: layer_prod_environment
+      Connections:
+        - Name: "layer-prod"
+          Role: CodeCatalystPreviewDevelopmentAdministrator-vyv35j

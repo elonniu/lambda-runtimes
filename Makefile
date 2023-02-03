@@ -3,7 +3,6 @@
 export # export all variables defined in .env
 
 export MAX_PARALLEL_PUBLISH ?= 8
-export ARCH ?= x86_64
 
 env-%:
 	@ if [ "${${*}}" = "" ]; then \
@@ -11,93 +10,81 @@ env-%:
 		exit 1; \
 	fi
 
-release-nginx:
-	TAG=nginx:1.23 $(MAKE) image-build-nginx-123
-	$(MAKE) layer-export-nginx-123
-	$(MAKE) layer-upload-nginx-123
+build-devel-x86_64:
+	CONTEXT_DIR=devel IMAGE=devel DOCKER_FILE=x86_64.prod.Dockerfile ARCH=x86_64 $(MAKE) build-image
 
-release-php:
-	TAG=php-82-fpm-nginx $(MAKE) image-build-php-82-fpm-nginx
-	$(MAKE) layer-export-php-82-fpm-nginx
-	$(MAKE) layer-upload-php-82-fpm-nginx
+build-devel-arm64:
+	CONTEXT_DIR=devel IMAGE=devel DOCKER_FILE=arm64.prod.Dockerfile ARCH=arm64 $(MAKE) build-image
 
-image-build-%: env-ARCH env-VERSION
-	DOCKER_BUILDKIT=1 docker build --platform=$(PLATFORM) -t public.ecr.aws/awsguru/$(IMAGE):$(TAG_PRE)$(VERSION)-$(ARCH) ./${*} --file ./${*}/$(FILE_PRE)$(ARCH).Dockerfile
-	docker push public.ecr.aws/awsguru/$(IMAGE):$(TAG_PRE)$(VERSION)-$(ARCH)
+build-image: env-ARCH env-IMAGE env-TAG env-CONTEXT_DIR
+	DOCKER_BUILDKIT=1 docker build --platform=linux/$(ARCH) -t public.ecr.aws/awsguru/$(IMAGE):$(TAG)-$(ARCH) ./$(CONTEXT_DIR) --file ./$(CONTEXT_DIR)/$(DOCKER_FILE)
+	docker push public.ecr.aws/awsguru/$(IMAGE):$(TAG)-$(ARCH)
 
-manifest-%: env-ARCH env-VERSION env-IMAGE
-	# Current Version
-	docker pull public.ecr.aws/awsguru/$(IMAGE):$(TAG_PRE)$(VERSION)-x86_64
-	docker pull public.ecr.aws/awsguru/$(IMAGE):$(TAG_PRE)$(VERSION)-arm64
+tag-manifest: env-ARCH env-IMAGE env-TAG
+	docker pull public.ecr.aws/awsguru/$(IMAGE):$(TAG)-x86_64
 
-	docker manifest create --amend public.ecr.aws/awsguru/$(IMAGE):$(TAG_PRE)$(VERSION) \
-				                   public.ecr.aws/awsguru/$(IMAGE):$(TAG_PRE)$(VERSION)-x86_64 \
-				                   public.ecr.aws/awsguru/$(IMAGE):$(TAG_PRE)$(VERSION)-arm64
-	docker manifest annotate --arch arm64 public.ecr.aws/awsguru/$(IMAGE):$(TAG_PRE)$(VERSION) \
-			                        	public.ecr.aws/awsguru/$(IMAGE):$(TAG_PRE)$(VERSION)-arm64
-	docker manifest push public.ecr.aws/awsguru/$(IMAGE):$(TAG_PRE)$(VERSION)
+	docker manifest create --amend public.ecr.aws/awsguru/$(IMAGE):$(TAG) \
+				                   public.ecr.aws/awsguru/$(IMAGE):$(TAG)-arm64 \
+				                   public.ecr.aws/awsguru/$(IMAGE):$(TAG)-x86_64
 
-	# Main Latest Version
-	docker manifest create public.ecr.aws/awsguru/$(IMAGE):$(TAG_PRE)latest \
-				           public.ecr.aws/awsguru/$(IMAGE):$(TAG_PRE)$(VERSION)-x86_64 \
-				           public.ecr.aws/awsguru/$(IMAGE):$(TAG_PRE)$(VERSION)-arm64
-	docker manifest annotate --arch arm64 public.ecr.aws/awsguru/$(IMAGE):$(TAG_PRE)latest \
-			                        	public.ecr.aws/awsguru/$(IMAGE):$(TAG_PRE)$(VERSION)-arm64
-	docker manifest push public.ecr.aws/awsguru/$(IMAGE):$(TAG_PRE)latest
+	docker manifest annotate --arch arm64 public.ecr.aws/awsguru/$(IMAGE):$(TAG) \
+			                        	public.ecr.aws/awsguru/$(IMAGE):$(TAG)-arm64
 
-layer-export-%: env-ARCH env-VERSION env-PLATFORM
-	DOCKER_BUILDKIT=1 docker build --platform=$(PLATFORM) -t ${*}-$(ARCH)-zip ./${*} --file ./${*}/layer-$(ARCH).Dockerfile
-	docker run -v /tmp/:/tmp/ --entrypoint /bin/mv ${*}-$(ARCH)-zip /layer.zip /tmp/${*}-$(ARCH).zip
-	aws s3api put-object --bucket lambda-web-runtimes-layers --key $(VERSION)/${*}-$(ARCH).zip --body /tmp/${*}-$(ARCH).zip
+	docker manifest push public.ecr.aws/awsguru/$(IMAGE):$(TAG)
 
-layer-upload-%: env-ARCH env-VERSION
-	#LAYER=${*}-$(ARCH) $(MAKE) publish-parallel
+layer-export-al2: env-ARCH env-IMAGE env-TAG env-CONTEXT_DIR
+	DOCKER_BUILDKIT=1 docker build --platform=linux/$(ARCH) -t $(CONTEXT_DIR)-$(ARCH)-zip ./$(CONTEXT_DIR) --file ./$(CONTEXT_DIR)/layer.Dockerfile
+	docker run -v /tmp/:/tmp/ --entrypoint /bin/mv $(CONTEXT_DIR)-$(ARCH)-zip /layer.zip /tmp/$(CONTEXT_DIR)-$(ARCH).zip
+	LAYER=$(CONTEXT_DIR)-$(ARCH) AWS_DEFAULT_REGION=us-west-2 LAYER_NAME=bak-$(CONTEXT_DIR)-$(ARCH) ./publish_layer.sh
+	#LAYER=$(CONTEXT_DIR)-$(ARCH) AWS_DEFAULT_REGION=ap-southeast-4 ./publish_layer.sh
+	#LAYER=$(CONTEXT_DIR)-$(ARCH) $(MAKE) publish-parallel
 
 publish-parallel:
 	$(MAKE) -j${MAX_PARALLEL_PUBLISH} parallel-publish
 
-parallel-publish: america-1 america-2 europe-1 europe-2 asia-1 asia-2 miscellaneous
+parallel-publish: america-1 america-2 europe-1 europe-2 asia-1 asia-2 other
 
 america-1:
-	REGION=us-east-1 ./publish_layer.sh #US East (Ohio)
-	REGION=us-east-2 ./publish_layer.sh #US East (Ohio)
-	REGION=us-west-1 ./publish_layer.sh #US West (N. California)
+	AWS_DEFAULT_REGION=us-east-1 ./publish_layer.sh #US East (Ohio)
+	AWS_DEFAULT_REGION=us-east-2 ./publish_layer.sh #US East (Ohio)
+	AWS_DEFAULT_REGION=us-west-1 ./publish_layer.sh #US West (N. California)
 
 america-2:
-	REGION=us-west-2 ./publish_layer.sh #US West (Oregon)
-	REGION=ca-central-1 ./publish_layer.sh #Canada (Central)
-	REGION=sa-east-1 ./publish_layer.sh #South America (São Paulo)
+	AWS_DEFAULT_REGION=us-west-2 ./publish_layer.sh #US West (Oregon)
+	AWS_DEFAULT_REGION=ca-central-1 ./publish_layer.sh #Canada (Central)
+	AWS_DEFAULT_REGION=sa-east-1 ./publish_layer.sh #South America (São Paulo)
 
 europe-1:
-	REGION=eu-west-1 ./publish_layer.sh #Europe (Ireland)
-	REGION=eu-west-2 ./publish_layer.sh #Europe (London)
-	REGION=eu-west-3 ./publish_layer.sh #Europe (Paris)
+	AWS_DEFAULT_REGION=eu-west-1 ./publish_layer.sh #Europe (Ireland)
+	AWS_DEFAULT_REGION=eu-west-2 ./publish_layer.sh #Europe (London)
+	AWS_DEFAULT_REGION=eu-west-3 ./publish_layer.sh #Europe (Paris)
 
 europe-2:
-	REGION=eu-north-1 ./publish_layer.sh #Europe (Stockholm)
-	REGION=eu-south-1 ./publish_layer.sh #Europe (Milan)
-	REGION=eu-south-2 ./publish_layer.sh #Europe (Spain)
-	REGION=eu-central-1 ./publish_layer.sh #Europe (Frankfurt)
-	REGION=eu-central-2 ./publish_layer.sh #Europe (Zurich)
+	AWS_DEFAULT_REGION=eu-north-1 ./publish_layer.sh #Europe (Stockholm)
+	AWS_DEFAULT_REGION=eu-south-1 ./publish_layer.sh #Europe (Milan)
+	AWS_DEFAULT_REGION=eu-south-2 ./publish_layer.sh #Europe (Spain)
+	AWS_DEFAULT_REGION=eu-central-1 ./publish_layer.sh #Europe (Frankfurt)
+	AWS_DEFAULT_REGION=eu-central-2 ./publish_layer.sh #Europe (Zurich)
 
 asia-1:
-	REGION=ap-east-1 ./publish_layer.sh #Asia Pacific (Hong Kong)
-	REGION=ap-south-1 ./publish_layer.sh #Asia Pacific (Mumbai)
-	REGION=ap-south-2 ./publish_layer.sh #Asia Pacific (Hyderabad)
-	REGION=ap-southeast-1 ./publish_layer.sh #Asia Pacific (Singapore)
-	REGION=ap-southeast-2 ./publish_layer.sh #Asia Pacific (Sydney)
-	REGION=ap-southeast-3 ./publish_layer.sh #Asia Pacific (Jakarta)
+	AWS_DEFAULT_REGION=ap-east-1 ./publish_layer.sh #Asia Pacific (Hong Kong)
+	AWS_DEFAULT_REGION=ap-south-1 ./publish_layer.sh #Asia Pacific (Mumbai)
+	AWS_DEFAULT_REGION=ap-south-2 ./publish_layer.sh #Asia Pacific (Hyderabad)
+	AWS_DEFAULT_REGION=ap-southeast-1 ./publish_layer.sh #Asia Pacific (Singapore)
+	AWS_DEFAULT_REGION=ap-southeast-2 ./publish_layer.sh #Asia Pacific (Sydney)
+	AWS_DEFAULT_REGION=ap-southeast-3 ./publish_layer.sh #Asia Pacific (Jakarta)
+	AWS_DEFAULT_REGION=ap-southeast-4 ./publish_layer.sh #Asia Pacific (Melbourne)
 
 asia-2:
-	REGION=ap-northeast-1 ./publish_layer.sh #Asia Pacific (Tokyo)
-	REGION=ap-northeast-2 ./publish_layer.sh #Asia Pacific (Seoul)
-	REGION=ap-northeast-3 ./publish_layer.sh #Asia Pacific (Osaka)
+	AWS_DEFAULT_REGION=ap-northeast-1 ./publish_layer.sh #Asia Pacific (Tokyo)
+	AWS_DEFAULT_REGION=ap-northeast-2 ./publish_layer.sh #Asia Pacific (Seoul)
+	AWS_DEFAULT_REGION=ap-northeast-3 ./publish_layer.sh #Asia Pacific (Osaka)
 
-miscellaneous:
-	REGION=af-south-1 ./publish_layer.sh #Africa (Cape Town)
-	REGION=me-south-1 ./publish_layer.sh #Middle East (Bahrain)
-	REGION=me-central-1 ./publish_layer.sh #Middle East (UAE)
-	REGION=ap-southeast-2 ./publish_layer.sh #Asia Pacific (Sydney)
+other:
+	AWS_DEFAULT_REGION=af-south-1 ./publish_layer.sh #Africa (Cape Town)
+	AWS_DEFAULT_REGION=me-south-1 ./publish_layer.sh #Middle East (Bahrain)
+	AWS_DEFAULT_REGION=me-central-1 ./publish_layer.sh #Middle East (UAE)
+	AWS_DEFAULT_REGION=ap-southeast-2 ./publish_layer.sh #Asia Pacific (Sydney)
 
 nginx:
 	docker-compose up devel-nginx \
@@ -109,15 +96,14 @@ php:
 					  devel-php-80-fpm-nginx \
 					  devel-php-81-fpm-nginx \
 					  devel-php-82-fpm-nginx \
-					  beta-php-82-fpm-nginx \
 					  prod-php-74-fpm-nginx \
 					  prod-php-80-fpm-nginx \
 					  prod-php-81-fpm-nginx \
 					  prod-php-82-fpm-nginx
 	docker-compose down
 
-beta:
-	docker-compose up beta-php-82-fpm-nginx
+php-beta:
+	docker-compose up php-beta-fpm-nginx
 	docker-compose down
 
 clean:
