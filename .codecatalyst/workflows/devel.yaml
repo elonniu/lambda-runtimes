@@ -1,4 +1,5 @@
 Name: devel
+#RunMode: SUPERSEDED
 RunMode: PARALLEL
 SchemaVersion: "1.0"
 Triggers:
@@ -20,16 +21,17 @@ Actions:
         ReportNamePrefix: rpt
     Configuration:
       Steps:
+        - Run: export VERSION=2023.2.5.5
         - Run: export DOCKER_USER_NAME=${Secrets.DOCKER_USER_NAME}
         - Run: export DOCKER_PASSWORD=${Secrets.DOCKER_PASSWORD}
         - Run: export SLACK_URL=${Secrets.SLACK_URL}
-        - Run: export CONTEXT_DIR=devel
+        - Run: export SRC=src/devel
         - Run: export IMAGE=devel
-        - Run: export TAG=2023.2.3.3
-        - Run: export DOCKER_FILE=prod.Dockerfile
-        - Run: . ./.codecatalyst/scripts/login_docker.sh
-        - Run: . ./.codecatalyst/scripts/publish_ecr_image.sh
-        - Run: . ./.codecatalyst/scripts/publish_ecr_manifest.sh
+        - Run: export TAG=2023.2.5.5
+        - Run: export DOCKER_FILE=Dockerfile
+        - Run: export MANIFEST=TRUE
+        - Run: . ./artisan publish_image x86_64
+        - Run: . ./artisan publish_image arm64
     Environment:
       Name: ecr_prod_environment
       Connections:

@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+
+set -e
+
+usage() {
+  echo "usage: $0 COMMAND"
+  echo
+  echo "Manage runtime tarball lifecycle."
+  echo
+  echo "Commands:"
+  echo "   copy_libs   Copy all lib to your /opt/lib"
+  echo "   clean_libs  Clean lib in your /opt/lib"
+  echo "   zip_layer   Zip you /opt/ for layer"
+  echo
+}
+
+copy_libs_from_files() {
+  for file in $(ls $1); do
+    copy_libs "$file"
+  done
+}
+
+copy_libs() {
+  mkdir -p /opt/lib
+  echo "Copy libraries: $1"
+  chmod +x "$1"
+  for lib in $(ldd "$1"); do
+    if [ -f "$lib" ]; then
+      echo "cp /opt/lib/$lib"
+      cp "$lib" /opt/lib
+    fi
+  done
+}
+
+clean_libs() {
+  dirs=$(echo "$LD_LIBRARY_PATH" | tr ":" "\n")
+  opt_lib=/opt/lib
+  dirs=${dirs[@]/$opt_lib/}
+  for dir in $dirs; do
+    echo "$dir"
+    for lib in $(ls /opt/lib); do
+      if [ -f "$dir/$lib" ]; then
+        echo "rm /opt/lib/$lib because already exists in $dir/$lib"
+        rm -rf "/opt/lib/$lib"
+      fi
+    done
+  done
+}
+
+zip_layer() {
+  echo "zip starting..."
+  cd /opt
+  zip --quiet --recurse-paths /layer.zip .
+  echo "Lambda Layer file is $(du -sh /layer.zip)"
+}
+
+case "$1" in
+
+copy_libs_from_files)
+  copy_libs_from_files "$2"
+  ;;
+
+copy_libs)
+  copy_libs "$2"
+  ;;
+
+clean_libs)
+  clean_libs
+  ;;
+
+zip_layer)
+  zip_layer
+  ;;
+
+prefix)
+  prefix "$2"
+  ;;
+
+*)
+  usage
+  ;;
+
+esac

@@ -1,5 +1,6 @@
 Name: php_80
-RunMode: SUPERSEDED
+#RunMode: SUPERSEDED
+RunMode: PARALLEL
 SchemaVersion: "1.0"
 Triggers:
   - Type: PUSH
@@ -9,7 +10,7 @@ Compute:
   Type: EC2
   Fleet: build_servers
 Actions:
-  publish_ecr_image:
+  publish_image:
     Identifier: aws/build@v1
     Inputs:
       Sources:
@@ -20,18 +21,24 @@ Actions:
         ReportNamePrefix: rpt
     Configuration:
       Steps:
+        - Run: export VERSION=2023.2.5.6
         - Run: export DOCKER_USER_NAME=${Secrets.DOCKER_USER_NAME}
         - Run: export DOCKER_PASSWORD=${Secrets.DOCKER_PASSWORD}
         - Run: export SLACK_URL=${Secrets.SLACK_URL}
+        - Run: export SRC=src/php-80-fpm-nginx
         - Run: export IMAGE=php
-        - Run: export CONTEXT_DIR=php-80-fpm-nginx
-        - Run: export TAG=devel-80-2023.2.3.3
         - Run: export DOCKER_FILE=devel.Dockerfile
-        - Run: . ./.codecatalyst/scripts/login_docker.sh
-        - Run: . ./.codecatalyst/scripts/publish_ecr_image.sh
-        - Run: export TAG=80-2023.2.3.3
+        - Run: export TAG=devel-80-2023.2.5.6
+        - Run: . ./artisan publish_image x86_64
+        - Run: . ./artisan publish_image arm64
+        - Run: export DOCKER_FILE=layer.Dockerfile
+        - Run: export TAG=layer-80-2023.2.5.6
+        - Run: . ./artisan publish_image x86_64
+        - Run: . ./artisan publish_image arm64
         - Run: export DOCKER_FILE=prod.Dockerfile
-        - Run: . ./.codecatalyst/scripts/publish_ecr_image.sh
+        - Run: export TAG=80-2023.2.5.6
+        - Run: . ./artisan publish_image x86_64
+        - Run: . ./artisan publish_image arm64
     Environment:
       Name: ecr_prod_environment
       Connections:
@@ -39,7 +46,7 @@ Actions:
           Role: CodeCatalystPreviewDevelopmentAdministrator-621gd9
   publish_lambda_layer:
     DependsOn:
-      - publish_ecr_image
+      - publish_image
     Identifier: aws/build@v1
     Inputs:
       Sources:
@@ -52,10 +59,11 @@ Actions:
       Steps:
         - Run: export SLACK_URL=${Secrets.SLACK_URL}
         - Run: export IMAGE=php
-        - Run: export CONTEXT_DIR=php-80-fpm-nginx
-        - Run: export TAG=80-2023.2.3.3
-        - Run: export COMPATIBLE_RUNTIMES="provided provided.al2 java11"
-        - Run: . ./.codecatalyst/scripts/publish_lambda_layer.sh
+        - Run: export TAG=layer-80-2023.2.5.6
+        - Run: export LAYER_NAME=Php80FpmNginx
+        - Run: export LAYER_VERSION=4
+        - Run: . ./artisan publish_layer x86_64
+        - Run: . ./artisan publish_layer arm64
     Environment:
       Name: layer_prod_environment
       Connections:

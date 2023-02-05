@@ -1,0 +1,445 @@
+#!/usr/bin/env bash
+
+# Fail on error
+set -e
+
+export MAX_PARALLEL_PUBLISH=8
+export DOCKER_BUILDKIT=1
+
+slack() {
+  TEXT="[$IMAGE:$TAG-$ARCH] $1"
+
+  echo "$TEXT"
+
+  if [ "$SLACK_URL" != "" ]; then
+    curl --silent POST "$SLACK_URL" -d "{\"text\": \"$TEXT\"}" >/dev/null
+  fi
+}
+
+error() {
+  slack "$1"
+  exit 1
+}
+
+env() {
+  if [ -z $(echo $1) ]; then error "Environment variable $1 not set"; fi
+}
+
+publish_image() {
+
+  login_ecr
+  login_docker
+
+  ARCH=$1
+
+  IMAGE_URI="public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH"
+
+  docker manifest inspect "$IMAGE_URI" >/dev/null 2>&1 && IE=TRUE || IE=FALSE
+  if [ "$IE" == "TRUE" ]; then
+    slack "Image already exists"
+    return
+  fi
+
+  slack "Image building"
+
+  if [ "$ARCH" == "arm64" ]; then binfmt; fi
+  docker build ./$SRC \
+    --platform=linux/$ARCH \
+    --build-arg ARCH=$ARCH \
+    --build-arg VERSION=$VERSION \
+    --tag $IMAGE_URI \
+    --file ./$SRC/$DOCKER_FILE
+
+  if [ $? != 0 ]; then error "Image build failed: $IMAGE:$TAG-$ARCH"; fi
+
+  tests_run
+  push_to_ecr
+}
+
+login_docker() {
+  if [ "$DOCKER_LOGGED" == "TRUE" ]; then
+    return
+  fi
+
+  env DOCKER_USER_NAME
+  env DOCKER_PASSWORD
+
+  docker login --username "$DOCKER_USER_NAME" --password "$DOCKER_PASSWORD"
+  if [ $? != 0 ]; then error "login docker failed"; fi
+
+  DOCKER_LOGGED=TRUE
+}
+
+login_ecr() {
+  if [ "$ECR_LOGGED" == "TRUE" ]; then return; fi
+
+  ECP_PASSWORD=$(aws ecr-public get-login-password --region us-east-1)
+  if [ $? != 0 ]; then error "get-login-password failed"; fi
+
+  docker login --username AWS --password "$ECP_PASSWORD" public.ecr.aws/awsguru
+  if [ $? != 0 ]; then error "login ECR failed"; fi
+
+  ECR_LOGGED=TRUE
+}
+
+manifest_image() {
+  docker manifest create --amend \
+    public.ecr.aws/awsguru/$IMAGE:latest \
+    public.ecr.aws/awsguru/$IMAGE:$TAG-arm64 \
+    public.ecr.aws/awsguru/$IMAGE:$TAG-x86_64
+
+  docker manifest annotate --arch arm64 \
+    public.ecr.aws/awsguru/$IMAGE:latest \
+    public.ecr.aws/awsguru/$IMAGE:$TAG-arm64
+
+  docker manifest push public.ecr.aws/awsguru/$IMAGE:latest
+
+  slack "Image manifest done: latest"
+}
+
+manifest_tag() {
+  docker manifest create --amend \
+    public.ecr.aws/awsguru/$IMAGE:$TAG \
+    public.ecr.aws/awsguru/$IMAGE:$TAG-arm64 \
+    public.ecr.aws/awsguru/$IMAGE:$TAG-x86_64
+
+  docker manifest annotate --arch arm64 \
+    public.ecr.aws/awsguru/$IMAGE:$TAG \
+    public.ecr.aws/awsguru/$IMAGE:$TAG-arm64
+
+  docker manifest push public.ecr.aws/awsguru/$IMAGE:$TAG
+
+  slack "Image manifest done: $TAG"
+}
+
+binfmt() {
+  docker run --rm --privileged docker/binfmt:a7996909642ee92942dcd6cff44b9b95f08dad64
+}
+
+publish_layer() {
+
+  env LAYER_NAME
+
+  export IMAGE=$IMAGE
+  export TAG=$TAG
+  export ARCH=$1
+
+  if [ "$ARCH" == "arm64" ]; then
+    binfmt
+    LAYER_NAME="${LAYER_NAME}Arm"
+  else
+    LAYER_NAME="${LAYER_NAME}X86"
+  fi
+
+  docker run --volume /tmp/:/tmp/ \
+    --entrypoint /bin/mv \
+    public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH /layer.zip /tmp/$LAYER_NAME.zip
+
+  LAYER_SIZE=$(du -sh /tmp/$LAYER_NAME.zip)
+
+  slack "$LAYER_SIZE"
+
+  #  make -j$MAX_PARALLEL_PUBLISH upload_layer
+}
+
+tests_run() {
+  if [ "$IMAGE" == "php" ]; then tests_php; fi
+  if [ "$IMAGE" == "php-beta" ]; then tests_php; fi
+  if [ "$IMAGE" == "nginx" ]; then tests_nginx; fi
+}
+
+tests_php() {
+  if [[ "$TAG" == "layer"* ]]; then
+    slack "Layer testing"
+    tests_php_layer public.ecr.aws/lambda/provided
+    tests_php_layer public.ecr.aws/lambda/provided:al2
+    tests_php_layer public.ecr.aws/lambda/java:11
+    tests_php_layer public.ecr.aws/sam/emulation-java11
+    slack "Layer succeed"
+  else
+    slack "Docker testing"
+    tests_php_docker
+    slack "Docker succeed"
+  fi
+}
+
+tests_php_docker() {
+  CONTAINER_NAME=$IMAGE-$TAG-$ARCH-test
+
+  clear_container $CONTAINER_NAME
+
+  docker run -d -v /opt \
+    --platform linux/$ARCH \
+    --name $CONTAINER_NAME \
+    --volume $PWD/tests/php:/var/task \
+    -p 127.0.0.1:8080:8080/tcp \
+    public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH
+
+  health_check "http://127.0.0.1:8080/" "PHP Version"
+
+  clear_container $CONTAINER_NAME
+
+  docker run \
+    --platform linux/$ARCH \
+    --name $CONTAINER_NAME \
+    --volume $PWD/tests/php:/var/task \
+    --entrypoint /opt/php/bin/php \
+    public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH test.php $IMAGE:$TAG-$ARCH
+
+  clear_container $CONTAINER_NAME
+}
+
+tests_php_layer() {
+  CONTAINER_NAME=$IMAGE-$TAG-$ARCH-test
+
+  clear_container $CONTAINER_NAME
+  docker run -d -v /opt \
+    --platform linux/$ARCH \
+    --name $CONTAINER_NAME \
+    public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH
+
+  clear_container $CONTAINER_NAME-target
+
+  echo "Runtime image: $TEST_RUNTIME_ECR"
+
+  TEST_RUNTIME_ECR=$1
+  docker run --volumes-from $CONTAINER_NAME \
+    --platform linux/$ARCH \
+    --name $CONTAINER_NAME-target \
+    --volume $PWD/tests/php:/var/task \
+    --entrypoint /opt/php/bin/php \
+    $TEST_RUNTIME_ECR test.php $IMAGE:$TAG-$ARCH
+
+  clear_container $CONTAINER_NAME-target
+
+  clear_container $CONTAINER_NAME
+}
+
+tests_nginx() {
+  if [[ "$TAG" == "layer"* ]]; then
+    slack "Layer testing"
+    tests_nginx_layer public.ecr.aws/lambda/provided
+    tests_nginx_layer public.ecr.aws/lambda/provided:al2
+    tests_nginx_layer public.ecr.aws/lambda/java:11
+    tests_nginx_layer public.ecr.aws/sam/emulation-java11
+    slack "Layer succeed"
+  else
+    slack "Docker testing"
+    tests_nginx_docker
+    slack "Docker succeed"
+  fi
+}
+
+tests_nginx_docker() {
+  CONTAINER_NAME=$IMAGE-$TAG-$ARCH-test
+
+  clear_container $CONTAINER_NAME
+
+  docker run -d -v /opt \
+    --platform linux/$ARCH \
+    --name $CONTAINER_NAME \
+    -p 127.0.0.1:8080:8080/tcp \
+    --volume $PWD/tests/nginx:/var/task/app/public \
+    public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH
+
+  health_check "http://127.0.0.1:8080/" "Nginx Test"
+
+  clear_container $CONTAINER_NAME
+}
+
+tests_nginx_layer() {
+  CONTAINER_NAME=$IMAGE-$TAG-$ARCH-test
+
+  clear_container $CONTAINER_NAME
+  docker run -d -v /opt \
+    --platform linux/$ARCH \
+    --name $CONTAINER_NAME \
+    public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH
+
+  clear_container $CONTAINER_NAME-target
+  TEST_RUNTIME_ECR=$1
+  docker run -d --volumes-from $CONTAINER_NAME \
+    --platform linux/$ARCH \
+    --name $CONTAINER_NAME-target \
+    -p 127.0.0.1:8080:8080/tcp \
+    --entrypoint /opt/bootstrap \
+    --volume $PWD/tests/nginx:/var/task/app/public \
+    $TEST_RUNTIME_ECR
+
+  echo "Runtime image: $TEST_RUNTIME_ECR"
+
+  health_check "http://127.0.0.1:8080/" "Nginx Test"
+
+  clear_container $CONTAINER_NAME-target
+  clear_container $CONTAINER_NAME
+}
+
+health_check() {
+  health_url=$1
+  health_keyword=$2
+
+  echo "health_url: $health_url"
+  echo "health_keyword: $health_keyword"
+
+  health_body=$(wget -O - $health_url)
+
+  health_result=$(echo "$health_body" | grep "$health_keyword")
+  if [ "$health_result" != "" ]; then
+    echo "✓ Health check OK $health_url"
+  else
+    echo
+    echo "⨯ Health check ERROR $health_url"
+    echo '-----------------------------------------------------'
+    echo $health_body
+    exit 1
+  fi
+}
+
+clear_container() {
+  docker stop $1 || true && docker rm $1 || true
+}
+
+push_to_ecr() {
+  docker push public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH
+
+  slack "Image pushed"
+
+  if [ "$ARCH" == "arm64" ]; then
+
+    manifest_tag
+
+    if [ $? != 0 ]; then error "manifest_tag failed"; fi
+
+    if [ "$MANIFEST" == "TRUE" ]; then manifest_image; fi
+
+  fi
+}
+
+image_exists() {
+  if [ -z "$1" ]; then
+    echo 'Usage: ./docker-image-exists.sh image[:tag]' >&2
+    exit 1
+  fi
+
+  # Parse arguments:
+  IMAGE="${1%:*}"
+  TAG="${1##*:}"
+  if [ "$IMAGE" = "$TAG" ]; then
+    TAG=latest
+  fi
+
+  # Retrieve Docker Basic Authentication token:
+  CREDS_STORE="$(jq -r '.credsStore' "$HOME/.docker/config.json")"
+  if [ "$CREDS_STORE" = null ]; then
+    BASIC_AUTH="$(jq -r '.auths["https://index.docker.io/v1/"].auth' \
+      "$HOME/.docker/config.json")"
+  else
+    BASIC_AUTH=$(echo https://index.docker.io/v1/ |
+      docker-credential-"$CREDS_STORE" get |
+      jq -j '"\(.Username):\(.Secret)"' |
+      base64)
+  fi
+
+  # Define Docker access scope:
+  SCOPE="repository:$IMAGE:pull"
+
+  # Define the Docker token and registry URLs:
+  TOKEN_URL="https://auth.docker.io/token?service=registry.docker.io&scope=$SCOPE"
+  REGISTRY_URL="https://registry-1.docker.io/v2/$IMAGE/manifests/$TAG"
+
+  # Retrieve the access token:
+  TOKEN="$(curl -sSL -H "Authorization: Basic $BASIC_AUTH" "$TOKEN_URL" |
+    jq -r '.token')"
+
+  # Check if the given image tag exists:
+  curl -fsSLI -o /dev/null -H "Authorization: Bearer $TOKEN" "$REGISTRY_URL"
+}
+
+upload_layer() {
+
+  LAYERS=$(aws lambda list-layers --query 'Layers[*].LayerName' \
+    --region $REGION \
+    --output text)
+  if [ $? != 0 ]; then error "list-layers failed"; fi
+
+  if [[ "$LAYERS" == *"$LAYER_NAME"* ]]; then
+
+    ONLINE_VERSION=$(aws lambda list-layer-versions \
+      --region $REGION \
+      --layer-name "arn:aws:lambda:$REGION:753240598075:layer:$LAYER_NAME" \
+      --query 'LayerVersions[0].Version')
+    if [ $? != 0 ]; then error "list-layer-versions failed"; fi
+
+    if [ $ONLINE_VERSION -gt $LAYER_VERSION ]; then
+      slack "Online $LAYER_NAME:$ONLINE_VERSION > specified version $LAYER_VERSION in $REGION"
+      exit 0
+    fi
+
+    if [ $ONLINE_VERSION -ge $LAYER_VERSION ]; then
+      exit 0
+    fi
+
+    #  CODE_SHA256=$(aws lambda get-layer-version --layer-name $ARN --version-number $ONLINE_VERSION --query Content.CodeSha256 --output text)
+    #  if [ $? != 0 ]; then
+    #    error "get-layer-version failed"
+    #  fi
+
+    #  yum install -y vim-common
+    #  SHE256=$(cat /tmp/$LAYER_NAME.zip | sha256sum | cut -d' ' -f1 | xxd -r -p | base64)
+    #  if [ "$SHE256" == "$CODE_SHA256" ]; then
+    #    error "The need to upload, sha hashes are the same: $LAYER_NAME"
+    #  fi
+
+  fi
+
+  echo "Publishing layer $LAYER_NAME to $REGION..."
+
+  LAYER_VERSION=$(aws lambda publish-layer-version \
+    --region $REGION \
+    --layer-name $LAYER_NAME \
+    --description "Layer for $IMAGE:$TAG $ARCH" \
+    --license-info MIT \
+    --zip-file fileb:///tmp/$LAYER_NAME.zip \
+    --compatible-runtimes "provided provided.al2 java11" \
+    --output text \
+    --query Version)
+
+  echo "Layer $LAYER_NAME:$LAYER_VERSION uploaded, adding permissions..."
+
+  aws lambda add-layer-version-permission \
+    --region $REGION \
+    --layer-name $LAYER_NAME \
+    --version-number $LAYER_VERSION \
+    --statement-id public \
+    --action lambda:GetLayerVersion \
+    --principal "*"
+
+  slack "Layer $LAYER_NAME:$LAYER_VERSION published to $REGION"
+
+  aws s3api put-object \
+    --region=us-west-2 \
+    --bucket lambda-web-runtimes-layers \
+    --key "$LAYER_NAME-$LAYER_VERSION.zip" \
+    --body /tmp/$LAYER_NAME.zip
+}
+
+case "$1" in
+publish_image)
+  publish_image "$2"
+  ;;
+publish_layer)
+  publish_layer "$2"
+  ;;
+upload_layer)
+  upload_layer
+  ;;
+tests_run)
+  tests_run
+  ;;
+image_exists)
+  image_exists "$2"
+  ;;
+*)
+  error "command $1 not found"
+  ;;
+esac
