@@ -66,8 +66,11 @@ prod:
 					  prod-php-80-fpm-nginx \
 					  prod-php-81-fpm-nginx \
 					  prod-php-82-fpm-nginx \
-					  php-beta-fpm-nginx \
                       prod-nginx
+	docker-compose down
+
+beta:
+	docker-compose up php-beta-fpm-nginx
 	docker-compose down
 
 clean:
@@ -76,8 +79,10 @@ clean:
 	docker volume prune -f
 	docker builder prune -f
 
-test:
-	ARCH=x86_64 IMAGE=nginx TAG=devel-1.23-2023.2.5.6 ./artisan tests_run
-	ARCH=x86_64 IMAGE=nginx TAG=layer-1.23-2023.2.5.6 ./artisan tests_run
-	ARCH=x86_64 IMAGE=php TAG=devel-74-2023.2.5.6 ./artisan tests_run
-	ARCH=x86_64 IMAGE=php TAG=layer-74-2023.2.5.6 ./artisan tests_run
+php:
+	ARCH=x86_64 IMAGE=php TAG=devel-74-2023.2.6.7 ./artisan tests_run
+	ARCH=x86_64 IMAGE=php TAG=layer-74-2023.2.6.7 ./artisan tests_run
+
+nginx:
+	ARCH=x86_64 IMAGE=nginx TAG=devel-1.23-2023.2.6.7 ./artisan tests_run
+	ARCH=x86_64 IMAGE=nginx TAG=layer-1.23-2023.2.6.7 ./artisan tests_run

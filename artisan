@@ -46,13 +46,16 @@ publish_image() {
   docker build ./$SRC \
     --platform=linux/$ARCH \
     --build-arg ARCH=$ARCH \
-    --build-arg VERSION=$VERSION \
+    --build-arg IAMGE=$IAMGE \
+    --build-arg TAG=$TAG \
+    --build-arg DEVEL_TAG=$DEVEL_TAG \
     --tag $IMAGE_URI \
     --file ./$SRC/$DOCKER_FILE
 
   if [ $? != 0 ]; then error "Image build failed: $IMAGE:$TAG-$ARCH"; fi
 
-  tests_run
+# TODO
+#  tests_run
   push_to_ecr
 }
 
@@ -139,7 +142,7 @@ publish_layer() {
 
   slack "$LAYER_SIZE"
 
-  #  make -j$MAX_PARALLEL_PUBLISH upload_layer
+  make -j$MAX_PARALLEL_PUBLISH upload_layer
 }
 
 tests_run() {
@@ -149,106 +152,71 @@ tests_run() {
 }
 
 tests_php() {
+  tests_php_runtime public.ecr.aws/lambda/provided:al2
+
   if [[ "$TAG" == "layer"* ]]; then
-    slack "Layer testing"
-    tests_php_layer public.ecr.aws/lambda/provided
-    tests_php_layer public.ecr.aws/lambda/provided:al2
-    tests_php_layer public.ecr.aws/lambda/java:11
-    tests_php_layer public.ecr.aws/sam/emulation-java11
-    slack "Layer succeed"
-  else
-    slack "Docker testing"
-    tests_php_docker
-    slack "Docker succeed"
+    tests_php_runtime public.ecr.aws/lambda/provided
+    tests_php_runtime public.ecr.aws/lambda/java:11
+    tests_php_runtime public.ecr.aws/sam/emulation-java11
   fi
 }
 
-tests_php_docker() {
-  CONTAINER_NAME=$IMAGE-$TAG-$ARCH-test
+tests_php_runtime() {
+  slack "Testing"
+  CONTAINER_NAME=$IMAGE-$TAG-$ARCH
 
   clear_container $CONTAINER_NAME
-
   docker run -d -v /opt \
     --platform linux/$ARCH \
     --name $CONTAINER_NAME \
     --volume $PWD/tests/php:/var/task \
     -p 127.0.0.1:8080:8080/tcp \
     public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH
-
   health_check "http://127.0.0.1:8080/" "PHP Version"
 
-  clear_container $CONTAINER_NAME
-
-  docker run \
-    --platform linux/$ARCH \
-    --name $CONTAINER_NAME \
-    --volume $PWD/tests/php:/var/task \
-    --entrypoint /opt/php/bin/php \
-    public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH test.php $IMAGE:$TAG-$ARCH
-
-  clear_container $CONTAINER_NAME
-}
-
-tests_php_layer() {
-  CONTAINER_NAME=$IMAGE-$TAG-$ARCH-test
-
-  clear_container $CONTAINER_NAME
-  docker run -d -v /opt \
-    --platform linux/$ARCH \
-    --name $CONTAINER_NAME \
-    public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH
-
-  clear_container $CONTAINER_NAME-target
-
-  echo "Runtime image: $TEST_RUNTIME_ECR"
-
   TEST_RUNTIME_ECR=$1
+
+  echo "web test: $TEST_RUNTIME_ECR"
+  WEB_CONTAINER=$CONTAINER_NAME-web
+  clear_container $WEB_CONTAINER
+  docker run -d --volumes-from $CONTAINER_NAME \
+    --platform linux/$ARCH \
+    --name $WEB_CONTAINER \
+    --volume $PWD/tests/php:/var/task \
+    --entrypoint /opt/bootstrap \
+    -p 127.0.0.1:8081:8080/tcp \
+    $TEST_RUNTIME_ECR test.php $IMAGE:$TAG-$ARCH
+  health_check "http://127.0.0.1:8081/" "PHP Version"
+  clear_container $WEB_CONTAINER
+
+  echo "script test: $TEST_RUNTIME_ECR"
+  SCRIPT_CONTAINER=$CONTAINER_NAME-script
+  clear_container $SCRIPT_CONTAINER
   docker run --volumes-from $CONTAINER_NAME \
     --platform linux/$ARCH \
-    --name $CONTAINER_NAME-target \
+    --name $SCRIPT_CONTAINER \
     --volume $PWD/tests/php:/var/task \
     --entrypoint /opt/php/bin/php \
     $TEST_RUNTIME_ECR test.php $IMAGE:$TAG-$ARCH
-
-  clear_container $CONTAINER_NAME-target
+  clear_container $SCRIPT_CONTAINER
 
   clear_container $CONTAINER_NAME
+  slack "Testing succeed"
 }
 
 tests_nginx() {
+  tests_nginx_runtime public.ecr.aws/lambda/provided:al2
+
   if [[ "$TAG" == "layer"* ]]; then
-    slack "Layer testing"
-    tests_nginx_layer public.ecr.aws/lambda/provided
-    tests_nginx_layer public.ecr.aws/lambda/provided:al2
-    tests_nginx_layer public.ecr.aws/lambda/java:11
-    tests_nginx_layer public.ecr.aws/sam/emulation-java11
-    slack "Layer succeed"
-  else
-    slack "Docker testing"
-    tests_nginx_docker
-    slack "Docker succeed"
+    tests_nginx_runtime public.ecr.aws/lambda/provided
+    tests_nginx_runtime public.ecr.aws/lambda/java:11
+    tests_nginx_runtime public.ecr.aws/sam/emulation-java11
   fi
 }
 
-tests_nginx_docker() {
-  CONTAINER_NAME=$IMAGE-$TAG-$ARCH-test
-
-  clear_container $CONTAINER_NAME
-
-  docker run -d -v /opt \
-    --platform linux/$ARCH \
-    --name $CONTAINER_NAME \
-    -p 127.0.0.1:8080:8080/tcp \
-    --volume $PWD/tests/nginx:/var/task/app/public \
-    public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH
-
-  health_check "http://127.0.0.1:8080/" "Nginx Test"
-
-  clear_container $CONTAINER_NAME
-}
-
-tests_nginx_layer() {
-  CONTAINER_NAME=$IMAGE-$TAG-$ARCH-test
+tests_nginx_runtime() {
+  slack "Testing"
+  CONTAINER_NAME=$IMAGE-$TAG-$ARCH
 
   clear_container $CONTAINER_NAME
   docker run -d -v /opt \
@@ -256,22 +224,23 @@ tests_nginx_layer() {
     --name $CONTAINER_NAME \
     public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH
 
-  clear_container $CONTAINER_NAME-target
   TEST_RUNTIME_ECR=$1
+
+  WEB_CONTAINER=$CONTAINER_NAME-web
+  echo "script test: $TEST_RUNTIME_ECR"
+  clear_container $WEB_CONTAINER
   docker run -d --volumes-from $CONTAINER_NAME \
     --platform linux/$ARCH \
-    --name $CONTAINER_NAME-target \
+    --name $WEB_CONTAINER \
     -p 127.0.0.1:8080:8080/tcp \
     --entrypoint /opt/bootstrap \
     --volume $PWD/tests/nginx:/var/task/app/public \
     $TEST_RUNTIME_ECR
-
-  echo "Runtime image: $TEST_RUNTIME_ECR"
-
   health_check "http://127.0.0.1:8080/" "Nginx Test"
+  clear_container $WEB_CONTAINER
 
-  clear_container $CONTAINER_NAME-target
   clear_container $CONTAINER_NAME
+  slack "Testing succeed"
 }
 
 health_check() {
@@ -315,47 +284,13 @@ push_to_ecr() {
   fi
 }
 
-image_exists() {
-  if [ -z "$1" ]; then
-    echo 'Usage: ./docker-image-exists.sh image[:tag]' >&2
-    exit 1
-  fi
-
-  # Parse arguments:
-  IMAGE="${1%:*}"
-  TAG="${1##*:}"
-  if [ "$IMAGE" = "$TAG" ]; then
-    TAG=latest
-  fi
-
-  # Retrieve Docker Basic Authentication token:
-  CREDS_STORE="$(jq -r '.credsStore' "$HOME/.docker/config.json")"
-  if [ "$CREDS_STORE" = null ]; then
-    BASIC_AUTH="$(jq -r '.auths["https://index.docker.io/v1/"].auth' \
-      "$HOME/.docker/config.json")"
-  else
-    BASIC_AUTH=$(echo https://index.docker.io/v1/ |
-      docker-credential-"$CREDS_STORE" get |
-      jq -j '"\(.Username):\(.Secret)"' |
-      base64)
-  fi
-
-  # Define Docker access scope:
-  SCOPE="repository:$IMAGE:pull"
-
-  # Define the Docker token and registry URLs:
-  TOKEN_URL="https://auth.docker.io/token?service=registry.docker.io&scope=$SCOPE"
-  REGISTRY_URL="https://registry-1.docker.io/v2/$IMAGE/manifests/$TAG"
-
-  # Retrieve the access token:
-  TOKEN="$(curl -sSL -H "Authorization: Basic $BASIC_AUTH" "$TOKEN_URL" |
-    jq -r '.token')"
-
-  # Check if the given image tag exists:
-  curl -fsSLI -o /dev/null -H "Authorization: Bearer $TOKEN" "$REGISTRY_URL"
-}
-
 upload_layer() {
+
+  aws s3api put-object \
+    --region=us-west-2 \
+    --bucket lambda-web-runtimes-layers \
+    --key "$LAYER_NAME.zip" \
+    --body /tmp/$LAYER_NAME.zip
 
   LAYERS=$(aws lambda list-layers --query 'Layers[*].LayerName' \
     --region $REGION \
@@ -371,11 +306,12 @@ upload_layer() {
     if [ $? != 0 ]; then error "list-layer-versions failed"; fi
 
     if [ $ONLINE_VERSION -gt $LAYER_VERSION ]; then
-      slack "Online $LAYER_NAME:$ONLINE_VERSION > specified version $LAYER_VERSION in $REGION"
+      slack "Online Version $LAYER_NAME:$ONLINE_VERSION > specified version $LAYER_VERSION in $REGION"
       exit 0
     fi
 
     if [ $ONLINE_VERSION -ge $LAYER_VERSION ]; then
+      slack "Online Version $LAYER_NAME:$ONLINE_VERSION = specified version $LAYER_VERSION in $REGION"
       exit 0
     fi
 
@@ -435,9 +371,6 @@ upload_layer)
   ;;
 tests_run)
   tests_run
-  ;;
-image_exists)
-  image_exists "$2"
   ;;
 *)
   error "command $1 not found"
