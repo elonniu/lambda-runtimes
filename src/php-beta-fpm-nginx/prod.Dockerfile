@@ -1,17 +1,20 @@
+ARG IAMGE
+ARG TAG
+ARG DEVEL_TAG
 ARG ARCH
-ARG VERSION
 
 FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.6.1 AS adapter
-FROM public.ecr.aws/awsguru/php-beta:devel-$VERSION-$ARCH AS builder
+FROM public.ecr.aws/awsguru/php-beta:$DEVEL_TAG-$ARCH AS builder
 
 # Your builders code here
 # RUN pecl install intl
 # Run this command to build production runtime
-RUN /php-runtime
+RUN /lambda-runtime php_release
 
 FROM public.ecr.aws/lambda/provided:al2
 
-ENV IMAGE_TAG=$IMAGE_TAG
+ENV IAMGE=$IAMGE
+ENV TAG=$TAG
 
 COPY --from=builder /lambda-runtime /lambda-runtime
 COPY --from=builder /opt            /opt

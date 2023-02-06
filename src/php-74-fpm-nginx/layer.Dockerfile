@@ -1,4 +1,6 @@
-ARG VERSION
+ARG IAMGE
+ARG TAG
+ARG DEVEL_TAG
 
 FROM public.ecr.aws/awsguru/devel AS devel
 FROM public.ecr.aws/lambda/provided:al2 AS al2
@@ -6,14 +8,17 @@ FROM public.ecr.aws/lambda/provided AS provided
 FROM public.ecr.aws/lambda/java:11 AS java11
 FROM public.ecr.aws/sam/emulation-java11 AS emulation
 FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.6.1 AS adapter
-FROM public.ecr.aws/awsguru/php:devel-$VERSION AS builder
+FROM public.ecr.aws/awsguru/php:$DEVEL_TAG AS builder
 
 # Your builders code here
 # RUN pecl install intl
 # Run this command to build production runtime
-RUN /php-runtime
+RUN /lambda-runtime php_release
 
 FROM al2
+
+ENV IAMGE=$IAMGE
+ENV TAG=$TAG
 
 COPY --from=builder /opt            /opt
 COPY --from=builder /lambda-runtime /lambda-runtime

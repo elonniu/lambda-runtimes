@@ -1,17 +1,17 @@
 FROM public.ecr.aws/lambda/provided:al2
 
 ADD lambda-runtime /
-ADD php-runtime /
 
 ARG ARCH
-ARG VERSION
-ENV VERSION=$VERSION
+ARG IAMGE
+ARG TAG
 
+ENV IAMGE=$IAMGE
+ENV TAG=$TAG
 ENV OPENSSL_VERSION="1.1.1p"
 ENV PCRE2_VERSION="10.40"
 ENV ZLIB_VERSION="1.2.13"
 ENV PKG_CONFIG_PATH=/usr/local/pcre2/lib/pkgconfig/
-ENV DEVEL_RUNTIME=TRUE
 
 RUN if [[ $ARCH == "x86_64" ]]; then \
     yum install -y \

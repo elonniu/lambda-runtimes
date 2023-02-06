@@ -4,10 +4,6 @@ if [ ! -d '/tmp/session' ]; then
   mkdir -p /tmp/session
 fi
 
-# list runtime libs
-ls /lib64/*so*
-ls /usr/lib64/*so*
-
 if [ -f "/var/task/bootstrap" ]; then
   echo "Found and Running '/var/task/bootstrap' instead of '/opt/bootstrap'"
   exec -- /var/task/bootstrap

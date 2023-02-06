@@ -6,7 +6,7 @@
  */
 function success(string $message)
 {
-	echo "✓ $message" . PHP_EOL;
+	echo prefix() . " ✓ $message" . PHP_EOL;
 }
 
 /**
@@ -15,6 +15,14 @@ function success(string $message)
  */
 function error(string $message)
 {
-	echo "⨯ $message" . PHP_EOL;
+	echo prefix() . " ⨯ $message" . PHP_EOL;
+//	$extensions = get_loaded_extensions();
+//	sort($extensions);
+//	print_r(implode(", ", $extensions));
 	exit(1);
+}
+
+function prefix(): string
+{
+	return $_SERVER['argv'][1];
 }

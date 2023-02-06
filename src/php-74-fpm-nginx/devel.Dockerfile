@@ -1,4 +1,5 @@
-ARG VERSION
+ARG IAMGE
+ARG TAG
 
 FROM public.ecr.aws/awsguru/devel
 
@@ -6,8 +7,9 @@ COPY --from=public.ecr.aws/awsguru/nginx /opt /opt
 COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.6.1 /lambda-adapter /opt/extensions/
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
-ENV VERSION=$VERSION
 ENV PHP_VERSION="7.4.33"
+ENV IAMGE=$IAMGE
+ENV TAG=$TAG
 
 RUN cd /tmp && \
     curl -O https://www.php.net/distributions/php-$PHP_VERSION.tar.gz && \
@@ -27,12 +29,12 @@ RUN cd /tmp && \
       --dvidir=/tmp \
       --pdfdir=/tmp \
       --psdir=/tmp \
-      --enable-cli \
-      --enable-fpm \
+      --enable-shared=yes \
+      --enable-cli=shared \
+      --enable-fpm=shared \
       --with-fpm-user=nobody \
       --with-fpm-group=nobody \
-      --with-bcmath=shared \
-      --without-bz2 \
+      --with-bz2=shared \
       --with-pear=shared \
       --enable-ctype=shared \
       --with-curl=shared \
@@ -44,7 +46,7 @@ RUN cd /tmp && \
       --with-gettext=shared \
       --with-iconv=shared \
       --enable-mbstring=shared \
-      --enable-opcache \
+      --enable-opcache=shared \
       --with-openssl=shared \
       --enable-pcntl=shared \
       --with-external-pcre=shared \
@@ -52,8 +54,6 @@ RUN cd /tmp && \
       --with-pdo-mysql=shared \
       --enable-mysqlnd=shared \
       --with-pdo-sqlite=shared \
-      --without-mysqli \
-      --without-pdo-pgsql \
       --enable-phar=shared \
       --enable-posix=shared \
       --with-readline=shared \
@@ -61,7 +61,7 @@ RUN cd /tmp && \
       --enable-soap=shared \
       --enable-sockets=shared \
       --enable-sysvsem=shared\
-      --disable-sysvshm \
+      --enable-sysvshm=shared \
       --enable-tokenizer=shared\
       --with-libxml=shared \
       --enable-simplexml=shared \
@@ -69,10 +69,16 @@ RUN cd /tmp && \
       --enable-xmlreader=shared \
       --enable-xmlwriter=shared \
       --with-xsl=shared \
-      --disable-ftp \
-      --enable-bcmath \
+      --enable-ftp=shared \
+      --enable-bcmath=shared \
       --with-zip=shared \
       --with-zlib=shared \
+      --with-xmlrpc=shared \
+      --enable-shmop=shared \
+      --with-libedit=shared \
+      --enable-calendar=shared \
+      --without-pdo-pgsql \
+      --without-mysqli \
       && \
     make -j$(cat /proc/cpuinfo | grep "processor" | wc -l) && \
     make install && \
@@ -87,7 +93,7 @@ RUN cd /tmp && \
     mv $extension_dir /opt/php/extensions && \
     ln -s /opt/php/extensions $extension_dir && \
     \
-    /php-runtime enable_extensions && \
+    /lambda-runtime php_enable_extensions && \
     \
     yes | pecl install -f igbinary && \
     pecl install -f imagick && \
@@ -109,18 +115,8 @@ RUN cd /tmp && \
     make -j$(cat /proc/cpuinfo | grep "processor" | wc -l) && \
     make install && \
     \
-    /php-runtime enable_extensions && \
-    \
-    echo 'Copy Extensions Libraries' && \
-    mkdir -p /opt/lib && \
-    chmod +x /opt/php/extensions/* && \
-    for lib in $(ls /opt/php/extensions/*.so); do \
-        /lambda-runtime copy_libs $lib ; \
-    done && \
-    \
-    echo 'Copy PHP Libraries' && \
-    /lambda-runtime copy_libs /opt/php/bin/php && \
-    /lambda-runtime copy_libs /opt/php/bin/php-fpm && \
+    /lambda-runtime php_enable_extensions && \
+    /lambda-runtime php_copy_libs && \
     \
     echo 'Clean Cache' && \
     yum clean all && \

@@ -1,10 +1,13 @@
+ARG IAMGE
+ARG TAG
+
 FROM public.ecr.aws/awsguru/devel
 
 COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.6.1 /lambda-adapter /opt/extensions/
 
-ARG VERSION
-ENV VERSION=$VERSION
 ENV NGINX_VERSION="1.23.3"
+ENV IAMGE=$IAMGE
+ENV TAG=$TAG
 
 RUN cd /tmp \
     && curl -sL https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz | tar -xvz \

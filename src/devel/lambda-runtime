@@ -8,16 +8,25 @@ usage() {
   echo "Manage runtime tarball lifecycle."
   echo
   echo "Commands:"
-  echo "   copy_libs   Copy all lib to your /opt/lib"
-  echo "   clean_libs  Clean lib in your /opt/lib"
-  echo "   zip_layer   Zip you /opt/ for layer"
+  echo "   copy_libs"
+  echo "   clean_libs"
+  echo "   zip_layer"
+  echo "   php_enable_extensions"
+  echo "   php_copy_libs"
+  echo "   php_release"
   echo
 }
 
-copy_libs_from_files() {
-  for file in $(ls $1); do
+php_copy_libs() {
+  rm -rf /opt/lib/*
+
+  for file in $(ls /opt/php/extensions/*.so); do
     copy_libs "$file"
   done
+
+  copy_libs /opt/nginx/bin/nginx
+  copy_libs /opt/php/bin/php
+  copy_libs /opt/php/bin/php-fpm
 }
 
 copy_libs() {
@@ -26,7 +35,7 @@ copy_libs() {
   chmod +x "$1"
   for lib in $(ldd "$1"); do
     if [ -f "$lib" ]; then
-      echo "cp /opt/lib/$lib"
+      echo "cp $lib"
       cp "$lib" /opt/lib
     fi
   done
@@ -54,10 +63,35 @@ zip_layer() {
   echo "Lambda Layer file is $(du -sh /layer.zip)"
 }
 
+php_enable_extensions() {
+
+  echo 'Enable Extensions'
+  mkdir -p /opt/php/php.d/
+
+  extension_arr=()
+
+  for so in $(ls /opt/php/extensions/*.so); do
+    if readelf --wide --syms $so | grep -q ' zend_extension_entry$'; then
+      line="zend_extension=$so"
+    else
+      line="extension=$so"
+    fi
+    extension_arr+=($line)
+  done
+
+  echo "extension_dir=/opt/php/extensions" >/opt/php/php.d/extensions.ini
+  echo ${extension_arr[*]} | tr ' ' '\n' | sort -n >>/opt/php/php.d/extensions.ini
+  cat /opt/php/php.d/extensions.ini
+}
+
 case "$1" in
 
-copy_libs_from_files)
-  copy_libs_from_files "$2"
+php_enable_extensions)
+  php_enable_extensions
+  ;;
+
+php_copy_libs)
+  php_copy_libs
   ;;
 
 copy_libs)
@@ -72,8 +106,9 @@ zip_layer)
   zip_layer
   ;;
 
-prefix)
-  prefix "$2"
+php_release)
+  php_enable_extensions
+  php_copy_libs
   ;;
 
 *)
