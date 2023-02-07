@@ -54,8 +54,7 @@ publish_image() {
 
   if [ $? != 0 ]; then error "Image build failed: $IMAGE:$TAG-$ARCH"; fi
 
-# TODO
-#  tests_run
+  tests_run
   push_to_ecr
 }
 
@@ -123,24 +122,18 @@ publish_layer() {
 
   env LAYER_NAME
 
-  export IMAGE=$IMAGE
-  export TAG=$TAG
-  export ARCH=$1
+  ARCH=$1
 
   if [ "$ARCH" == "arm64" ]; then
     binfmt
-    LAYER_NAME="${LAYER_NAME}Arm"
+    LAYER_NAME="${LAYER_NAME_PRE}Arm"
   else
-    LAYER_NAME="${LAYER_NAME}X86"
+    LAYER_NAME="${LAYER_NAME_PRE}X86"
   fi
 
   docker run --volume /tmp/:/tmp/ \
     --entrypoint /bin/mv \
     public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH /layer.zip /tmp/$LAYER_NAME.zip
-
-  LAYER_SIZE=$(du -sh /tmp/$LAYER_NAME.zip)
-
-  slack "$LAYER_SIZE"
 
   make -j$MAX_PARALLEL_PUBLISH upload_layer
 }
@@ -152,17 +145,56 @@ tests_run() {
 }
 
 tests_php() {
+  slack "tests_php"
   tests_php_runtime public.ecr.aws/lambda/provided:al2
 
   if [[ "$TAG" == "layer"* ]]; then
+    tests_layer_size
     tests_php_runtime public.ecr.aws/lambda/provided
     tests_php_runtime public.ecr.aws/lambda/java:11
     tests_php_runtime public.ecr.aws/sam/emulation-java11
   fi
+  slack "tests_php succeed"
+}
+
+tests_nginx() {
+  slack "tests_nginx"
+  tests_nginx_runtime public.ecr.aws/lambda/provided:al2
+
+  if [[ "$TAG" == "layer"* ]]; then
+    tests_layer_size
+    tests_nginx_runtime public.ecr.aws/lambda/provided
+    tests_nginx_runtime public.ecr.aws/lambda/java:11
+    tests_nginx_runtime public.ecr.aws/sam/emulation-java11
+  fi
+  slack "tests_nginx succeed"
+}
+
+tests_layer_size() {
+
+  LAYER_FILE=$IMAGE:$TAG-$ARCH
+
+  docker run --volume /tmp/:/tmp/ \
+    --entrypoint /bin/mv \
+    public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH /layer.zip /tmp/$LAYER_FILE.zip
+
+  aws s3api put-object \
+    --region=us-west-2 \
+    --bucket lambda-runtimes-layers \
+    --key "$LAYER_FILE.zip" \
+    --body /tmp/$LAYER_FILE.zip
+
+  LAYER_SIZE=$(du -sh /tmp/$LAYER_FILE.zip | awk '{print $1}')
+
+  EXPECTED_SIZE=69904000
+  TRUE_SIZE=$(ls -l "/tmp/$LAYER_FILE.zip" | awk '{print $5}')
+  if [ $TRUE_SIZE -gt $EXPECTED_SIZE ]; then
+    error "Layer Size $TRUE_SIZE ($LAYER_SIZE) > $EXPECTED_SIZE"
+  fi
+
 }
 
 tests_php_runtime() {
-  slack "Testing"
   CONTAINER_NAME=$IMAGE-$TAG-$ARCH
 
   clear_container $CONTAINER_NAME
@@ -170,9 +202,7 @@ tests_php_runtime() {
     --platform linux/$ARCH \
     --name $CONTAINER_NAME \
     --volume $PWD/tests/php:/var/task \
-    -p 127.0.0.1:8080:8080/tcp \
     public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH
-  health_check "http://127.0.0.1:8080/" "PHP Version"
 
   TEST_RUNTIME_ECR=$1
 
@@ -184,9 +214,9 @@ tests_php_runtime() {
     --name $WEB_CONTAINER \
     --volume $PWD/tests/php:/var/task \
     --entrypoint /opt/bootstrap \
-    -p 127.0.0.1:8081:8080/tcp \
+    -p 127.0.0.1:8080:8080/tcp \
     $TEST_RUNTIME_ECR test.php $IMAGE:$TAG-$ARCH
-  health_check "http://127.0.0.1:8081/" "PHP Version"
+  health_check "http://127.0.0.1:8080/" "PHP Version"
   clear_container $WEB_CONTAINER
 
   echo "script test: $TEST_RUNTIME_ECR"
@@ -201,21 +231,9 @@ tests_php_runtime() {
   clear_container $SCRIPT_CONTAINER
 
   clear_container $CONTAINER_NAME
-  slack "Testing succeed"
-}
-
-tests_nginx() {
-  tests_nginx_runtime public.ecr.aws/lambda/provided:al2
-
-  if [[ "$TAG" == "layer"* ]]; then
-    tests_nginx_runtime public.ecr.aws/lambda/provided
-    tests_nginx_runtime public.ecr.aws/lambda/java:11
-    tests_nginx_runtime public.ecr.aws/sam/emulation-java11
-  fi
 }
 
 tests_nginx_runtime() {
-  slack "Testing"
   CONTAINER_NAME=$IMAGE-$TAG-$ARCH
 
   clear_container $CONTAINER_NAME
@@ -240,7 +258,6 @@ tests_nginx_runtime() {
   clear_container $WEB_CONTAINER
 
   clear_container $CONTAINER_NAME
-  slack "Testing succeed"
 }
 
 health_check() {
@@ -286,12 +303,6 @@ push_to_ecr() {
 
 upload_layer() {
 
-  aws s3api put-object \
-    --region=us-west-2 \
-    --bucket lambda-web-runtimes-layers \
-    --key "$LAYER_NAME.zip" \
-    --body /tmp/$LAYER_NAME.zip
-
   LAYERS=$(aws lambda list-layers --query 'Layers[*].LayerName' \
     --region $REGION \
     --output text)
@@ -311,7 +322,6 @@ upload_layer() {
     fi
 
     if [ $ONLINE_VERSION -ge $LAYER_VERSION ]; then
-      slack "Online Version $LAYER_NAME:$ONLINE_VERSION = specified version $LAYER_VERSION in $REGION"
       exit 0
     fi
 
@@ -325,7 +335,6 @@ upload_layer() {
     #  if [ "$SHE256" == "$CODE_SHA256" ]; then
     #    error "The need to upload, sha hashes are the same: $LAYER_NAME"
     #  fi
-
   fi
 
   echo "Publishing layer $LAYER_NAME to $REGION..."
@@ -336,7 +345,7 @@ upload_layer() {
     --description "Layer for $IMAGE:$TAG $ARCH" \
     --license-info MIT \
     --zip-file fileb:///tmp/$LAYER_NAME.zip \
-    --compatible-runtimes "provided provided.al2 java11" \
+    --compatible-runtimes provided provided.al2 java11 \
     --output text \
     --query Version)
 
@@ -351,12 +360,6 @@ upload_layer() {
     --principal "*"
 
   slack "Layer $LAYER_NAME:$LAYER_VERSION published to $REGION"
-
-  aws s3api put-object \
-    --region=us-west-2 \
-    --bucket lambda-web-runtimes-layers \
-    --key "$LAYER_NAME-$LAYER_VERSION.zip" \
-    --body /tmp/$LAYER_NAME.zip
 }
 
 case "$1" in
