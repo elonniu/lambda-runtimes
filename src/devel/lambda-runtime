@@ -109,6 +109,22 @@ zip_layer)
 php_release)
   php_enable_extensions
   php_copy_libs
+  rm -rf /opt/php/bin/pear
+  rm -rf /opt/php/bin/peardev
+  rm -rf /opt/php/bin/pecl
+  rm -rf /opt/php/bin/phar
+  rm -rf /opt/php/bin/phar.phar
+  rm -rf /opt/php/bin/php-cgi
+  rm -rf /opt/php/bin/php-config
+  rm -rf /opt/php/bin/phpdbg
+  rm -rf /opt/php/bin/phpize
+  rm -rf /opt/php/include
+  rm -rf /opt/php/lib
+  rm -rf /opt/php/php
+  rm -rf /opt/php/etc/pear.conf
+  rm -rf /opt/php/etc/php-fpm.conf.default
+  rm -rf /opt/php/etc/php-fpm.d
+  rm -rf /opt/nginx/html
   ;;
 
 *)
