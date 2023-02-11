@@ -1,4 +1,4 @@
-ARG IAMGE
+ARG IMAGE
 ARG TAG
 
 FROM public.ecr.aws/awsguru/devel
@@ -8,7 +8,7 @@ COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.6.1 /lambda-adapter /opt
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
 ENV PHP_VERSION="8.1.14"
-ENV IAMGE=$IAMGE
+ENV IMAGE=$IMAGE
 ENV TAG=$TAG
 
 RUN cd /tmp && \
@@ -77,7 +77,9 @@ RUN cd /tmp && \
       --enable-shmop=shared \
       --with-libedit=shared \
       --enable-calendar=shared \
-      --without-pdo-pgsql \
+      --enable-intl=shared \
+      --with-pdo-pgsql=shared \
+      --with-pgsql=shared \
       --without-mysqli \
       && \
     make -j$(cat /proc/cpuinfo | grep "processor" | wc -l) && \

@@ -80,9 +80,24 @@ clean:
 	docker builder prune -f
 
 php:
-	ARCH=x86_64 IMAGE=php-beta TAG=2023.2.7.5 ./artisan tests_run
-	ARCH=x86_64 IMAGE=php TAG=layer-74-2023.2.7.5 ./artisan tests_run
+	ARCH=x86_64 IMAGE=php-beta TAG=2023.2.8.4 ./artisan tests_run
+	#ARCH=x86_64 IMAGE=php TAG=layer-74-2023.2.8.4 ./artisan tests_run
 
 nginx:
-	ARCH=x86_64 IMAGE=nginx TAG=devel-1.23-2023.2.7.5 ./artisan tests_run
-	ARCH=x86_64 IMAGE=nginx TAG=layer-1.23-2023.2.7.5 ./artisan tests_run
+	ARCH=x86_64 IMAGE=nginx TAG=devel-1.23-2023.2.8.4 ./artisan tests_run
+	ARCH=x86_64 IMAGE=nginx TAG=layer-1.23-2023.2.8.4 ./artisan tests_run
+
+build:
+	docker stop local_build || true && docker rm local_build || true
+	docker rmi --force local_build:latest
+	docker build ./src/php-82-fpm-nginx \
+			     --platform=linux/x86_64 \
+			     --build-arg ARCH=x86_64 \
+			     --build-arg IMAGE=php \
+			     --build-arg TAG=2023.2.8.5 \
+			     --build-arg DEVEL_TAG=devel-2023.2.8.4 \
+			     --tag local_build \
+			     --file ./src/php-beta-fpm-nginx/prod.Dockerfile
+	docker run -it --name local_build local_build bash
+	docker stop local_build || true && docker rm local_build || true
+	docker rmi --force local_build:latest

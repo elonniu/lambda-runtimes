@@ -1,4 +1,4 @@
-ARG IAMGE
+ARG IMAGE
 ARG TAG
 ARG DEVEL_TAG
 ARG ARCH
@@ -11,24 +11,28 @@ FROM public.ecr.aws/sam/emulation-java11 AS emulation
 FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.6.1 AS adapter
 FROM public.ecr.aws/awsguru/php-beta:$DEVEL_TAG-$ARCH AS builder
 
+COPY lambda-runtime /
+
 # Your builders code here
 # You can install or disable some extensions
 # RUN pecl install intl
-RUN rm -rf /opt/php/extensions/ftp.* && \
-    rm -rf /opt/php/extensions/shmop.* && \
-    rm -rf /opt/php/extensions/pdo_sqlite.* && \
-    rm -rf /opt/php/extensions/calendar.* && \
-    rm -rf /opt/php/extensions/sodium.* && \
-    rm -rf /opt/php/extensions/bz2.* && \
-    rm -rf /opt/php/extensions/sysvsem.* && \
-    rm -rf /opt/php/extensions/sysvshm.* && \
-    rm -rf /opt/php/extensions/bcmath.* && \
-    rm -rf /opt/php/extensions/gd.* && \
+RUN /lambda-runtime php_disable shmop \
+                                calendar \
+                                xmlrpc \
+                                sysvsem \
+                                sysvshm \
+                                pdo_pgsql \
+                                pgsql \
+                                gd \
+                                bz2 \
+                                intl \
+                                ftp \
+                                bcmath && \
     /lambda-runtime php_release
 
 FROM al2
 
-ENV IAMGE=$IAMGE
+ENV IMAGE=$IMAGE
 ENV TAG=$TAG
 
 COPY --from=builder /opt            /opt

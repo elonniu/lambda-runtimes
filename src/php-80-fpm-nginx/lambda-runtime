@@ -93,8 +93,6 @@ php_install() {
   for extension in "${@:2}"; do
     pecl install $extension
   done
-
-  php_enable_extensions
 }
 
 case "$1" in

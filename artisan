@@ -46,7 +46,7 @@ publish_image() {
   docker build ./$SRC \
     --platform=linux/$ARCH \
     --build-arg ARCH=$ARCH \
-    --build-arg IAMGE=$IAMGE \
+    --build-arg IMAGE=$IMAGE \
     --build-arg TAG=$TAG \
     --build-arg DEVEL_TAG=$DEVEL_TAG \
     --tag $IMAGE_URI \
@@ -124,16 +124,11 @@ publish_layer() {
 
   ARCH=$1
 
-  if [ "$ARCH" == "arm64" ]; then
-    binfmt
-    LAYER_NAME="${LAYER_NAME_PRE}Arm"
-  else
-    LAYER_NAME="${LAYER_NAME_PRE}X86"
-  fi
-
   docker run --volume /tmp/:/tmp/ \
     --entrypoint /bin/mv \
     public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH /layer.zip /tmp/$LAYER_NAME.zip
+
+  limit_file_size /tmp/$LAYER_NAME.zip 52428800
 
   make -j$MAX_PARALLEL_PUBLISH upload_layer
 }
@@ -154,6 +149,7 @@ tests_php() {
     tests_php_runtime public.ecr.aws/lambda/java:11
     tests_php_runtime public.ecr.aws/sam/emulation-java11
   fi
+
   slack "tests_php succeed"
 }
 
@@ -167,6 +163,7 @@ tests_nginx() {
     tests_nginx_runtime public.ecr.aws/lambda/java:11
     tests_nginx_runtime public.ecr.aws/sam/emulation-java11
   fi
+
   slack "tests_nginx succeed"
 }
 
@@ -184,14 +181,19 @@ tests_layer_size() {
     --key "$LAYER_FILE.zip" \
     --body /tmp/$LAYER_FILE.zip
 
-  LAYER_SIZE=$(du -sh /tmp/$LAYER_FILE.zip | awk '{print $1}')
+  limit_file_size /tmp/$LAYER_FILE.zip 52428800
+}
 
-  EXPECTED_SIZE=69904000
-  TRUE_SIZE=$(ls -l "/tmp/$LAYER_FILE.zip" | awk '{print $5}')
-  if [ $TRUE_SIZE -gt $EXPECTED_SIZE ]; then
-    error "Layer Size $TRUE_SIZE ($LAYER_SIZE) > $EXPECTED_SIZE"
+limit_file_size() {
+  FILE=$1
+  EXPECTED_SIZE=$2
+
+  SIZE_MB=$(du -sh $FILE | awk '{print $1}')
+  SIZE_BYTE=$(ls -l $FILE | awk '{print $5}')
+
+  if [ $SIZE_BYTE -gt $EXPECTED_SIZE ]; then
+    error "$FILE $SIZE_BYTE ($SIZE_MB) >= expected size $EXPECTED_SIZE"
   fi
-
 }
 
 tests_php_runtime() {
@@ -215,7 +217,7 @@ tests_php_runtime() {
     --volume $PWD/tests/php:/var/task \
     --entrypoint /opt/bootstrap \
     -p 127.0.0.1:8080:8080/tcp \
-    $TEST_RUNTIME_ECR test.php $IMAGE:$TAG-$ARCH
+    $TEST_RUNTIME_ECR test.php $IMAGE $TAG $ARCH
   health_check "http://127.0.0.1:8080/" "PHP Version"
   clear_container $WEB_CONTAINER
 
@@ -227,7 +229,7 @@ tests_php_runtime() {
     --name $SCRIPT_CONTAINER \
     --volume $PWD/tests/php:/var/task \
     --entrypoint /opt/php/bin/php \
-    $TEST_RUNTIME_ECR test.php $IMAGE:$TAG-$ARCH
+    $TEST_RUNTIME_ECR test.php $IMAGE $TAG $ARCH
   clear_container $SCRIPT_CONTAINER
 
   clear_container $CONTAINER_NAME
