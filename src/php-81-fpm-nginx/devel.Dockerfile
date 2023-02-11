@@ -7,6 +7,8 @@ COPY --from=public.ecr.aws/awsguru/nginx /opt /opt
 COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.6.1 /lambda-adapter /opt/extensions/
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
+COPY lambda-runtime /
+
 ENV PHP_VERSION="8.1.14"
 ENV IMAGE=$IMAGE
 ENV TAG=$TAG
@@ -54,6 +56,7 @@ RUN cd /tmp && \
       --with-pdo-mysql=shared \
       --enable-mysqlnd=shared \
       --with-pdo-sqlite=shared \
+      --with-mysqli=shared \
       --enable-phar=shared \
       --enable-posix=shared \
       --with-readline=shared \
@@ -80,7 +83,6 @@ RUN cd /tmp && \
       --enable-intl=shared \
       --with-pdo-pgsql=shared \
       --with-pgsql=shared \
-      --without-mysqli \
       && \
     make -j$(cat /proc/cpuinfo | grep "processor" | wc -l) && \
     make install && \
