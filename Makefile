@@ -80,24 +80,24 @@ clean:
 	docker builder prune -f
 
 php:
-	ARCH=x86_64 IMAGE=php-beta TAG=2023.2.8.4 ./artisan tests_run
-	#ARCH=x86_64 IMAGE=php TAG=layer-74-2023.2.8.4 ./artisan tests_run
+	ARCH=x86_64 IMAGE=php-beta TAG=local ./artisan tests_run
+	ARCH=x86_64 IMAGE=php TAG=layer.74.2023.2.11.2 ./artisan tests_run
 
 nginx:
-	ARCH=x86_64 IMAGE=nginx TAG=devel-1.23-2023.2.8.4 ./artisan tests_run
-	ARCH=x86_64 IMAGE=nginx TAG=layer-1.23-2023.2.8.4 ./artisan tests_run
+	ARCH=x86_64 IMAGE=nginx TAG=devel.1.23.2023.2.11.2 ./artisan tests_run
+	ARCH=x86_64 IMAGE=nginx TAG=layer.1.23.2023.2.11.2 ./artisan tests_run
 
 build:
-	docker stop local_build || true && docker rm local_build || true
-	docker rmi --force local_build:latest
-	docker build ./src/php-82-fpm-nginx \
+	docker stop beta_local || true && docker rm beta_local || true
+	docker rmi --force public.ecr.aws/awsguru/php-beta:local-x86_64
+	docker build ./src/php-beta-fpm-nginx \
 			     --platform=linux/x86_64 \
 			     --build-arg ARCH=x86_64 \
-			     --build-arg IMAGE=php \
-			     --build-arg TAG=2023.2.8.5 \
-			     --build-arg DEVEL_TAG=devel-2023.2.8.4 \
-			     --tag local_build \
+			     --build-arg IMAGE=php-beta \
+			     --build-arg TAG=local \
+			     --build-arg DEVEL_TAG=devel.2023.2.11.2 \
+			     --tag public.ecr.aws/awsguru/php-beta:local-x86_64 \
 			     --file ./src/php-beta-fpm-nginx/prod.Dockerfile
-	docker run -it --name local_build local_build bash
-	docker stop local_build || true && docker rm local_build || true
-	docker rmi --force local_build:latest
+	docker run -it --name beta_local -p 127.0.0.1:8001:8080/tcp public.ecr.aws/awsguru/php-beta:local-x86_64 bash
+	docker stop beta_local || true && docker rm beta_local || true
+	docker rmi --force public.ecr.aws/awsguru/php-beta:local-x86_64

@@ -23,11 +23,9 @@ RUN /lambda-runtime php_disable shmop \
                                 sysvshm \
                                 pdo_pgsql \
                                 pgsql \
-                                gd \
                                 bz2 \
                                 intl \
-                                ftp \
-                                bcmath && \
+                                && \
     /lambda-runtime php_release
 
 FROM al2

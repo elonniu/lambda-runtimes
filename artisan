@@ -27,10 +27,14 @@ env() {
 
 publish_image() {
 
+  ARCH=$2
+
+  if [ "$3" == "manifest" ]; then
+    MANIFEST="TRUE"
+  fi
+
   login_ecr
   login_docker
-
-  ARCH=$1
 
   IMAGE_URI="public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH"
 
@@ -339,7 +343,9 @@ upload_layer() {
     #  fi
   fi
 
-  echo "Publishing layer $LAYER_NAME to $REGION..."
+  SIZE_MB=$(du -sh /tmp/$LAYER_NAME.zip | awk '{print $1}')
+
+  echo "Publishing layer $LAYER_NAME ($SIZE_MB) to $REGION..."
 
   LAYER_VERSION=$(aws lambda publish-layer-version \
     --region $REGION \
@@ -361,12 +367,12 @@ upload_layer() {
     --action lambda:GetLayerVersion \
     --principal "*"
 
-  slack "Layer $LAYER_NAME:$LAYER_VERSION published to $REGION"
+  slack "Layer $LAYER_NAME:$LAYER_VERSION ($SIZE_MB) published to $REGION"
 }
 
 case "$1" in
 publish_image)
-  publish_image "$2"
+  publish_image "$@"
   ;;
 publish_layer)
   publish_layer "$2"

@@ -55,8 +55,10 @@ clean_libs() {
 
 zip_layer() {
   echo "zip starting..."
+  mv /opt/php/bin/php /tmp/php
   cd /opt
   zip --quiet --recurse-paths /layer.zip .
+  mv /tmp/php /opt/php/bin/php
   echo "Lambda Layer file is $(du -sh /layer.zip)"
 }
 
@@ -66,18 +68,26 @@ php_enable_extensions() {
   mkdir -p /opt/php/php.d/
 
   extension_arr=()
+  extension_zend=()
+  extension_arr_last=()
 
   for so in $(ls /opt/php/extensions/*.so); do
     if readelf --wide --syms $so | grep -q ' zend_extension_entry$'; then
-      line="zend_extension=$so"
+      extension_zend+=("zend_extension=$so")
     else
-      line="extension=$so"
+      if [ "$so" == "/opt/php/extensions/mysqli.so" ]; then
+        extension_arr_last+=("extension=$so")
+      else
+        extension_arr+=("extension=$so")
+      fi
     fi
-    extension_arr+=($line)
   done
 
   echo "extension_dir=/opt/php/extensions" >/opt/php/php.d/extensions.ini
   echo ${extension_arr[*]} | tr ' ' '\n' | sort -n >>/opt/php/php.d/extensions.ini
+  echo ${extension_arr_last[*]} | tr ' ' '\n' | sort -n >>/opt/php/php.d/extensions.ini
+  echo ${extension_zend[*]} | tr ' ' '\n' | sort -n >>/opt/php/php.d/extensions.ini
+
   cat /opt/php/php.d/extensions.ini
 }
 
