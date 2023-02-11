@@ -1,4 +1,4 @@
-ARG IAMGE
+ARG IMAGE
 ARG TAG
 ARG DEVEL_TAG
 
@@ -12,7 +12,7 @@ FROM public.ecr.aws/awsguru/nginx:$DEVEL_TAG AS nginx
 
 FROM al2
 
-ENV IAMGE=$IAMGE
+ENV IMAGE=$IMAGE
 ENV TAG=$TAG
 
 COPY --from=nginx   /opt            /opt

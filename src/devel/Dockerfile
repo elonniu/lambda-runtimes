@@ -1,12 +1,12 @@
 FROM public.ecr.aws/lambda/provided:al2
 
-ADD lambda-runtime /
+COPY lambda-runtime /
 
 ARG ARCH
-ARG IAMGE
+ARG IMAGE
 ARG TAG
 
-ENV IAMGE=$IAMGE
+ENV IMAGE=$IMAGE
 ENV TAG=$TAG
 ENV OPENSSL_VERSION="1.1.1p"
 ENV PCRE2_VERSION="10.40"
