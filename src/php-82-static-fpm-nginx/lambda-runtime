@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+
+set -e
+
+usage() {
+  echo "usage: $0 COMMAND"
+  echo
+  echo "Manage runtime tarball lifecycle."
+  echo
+  echo "Commands:"
+  echo "   copy_libs"
+  echo "   clean_libs"
+  echo "   zip_layer"
+  echo "   php_enable_extensions"
+  echo "   php_copy_libs"
+  echo "   php_release"
+  echo
+}
+
+php_copy_libs() {
+  for file in $(ls /opt/php/extensions/*.*); do
+    copy_libs "$file"
+  done
+
+  copy_libs /opt/php/bin/php
+  copy_libs /opt/php/bin/php-fpm
+}
+
+copy_libs() {
+  mkdir -p /opt/lib
+  chmod +x "$1"
+  for lib in $(ldd "$1"); do
+    if [ -f "$lib" ]; then
+      echo "$1: cp $lib"
+      cp "$lib" /opt/lib
+    fi
+  done
+}
+
+clean_libs() {
+  dirs=$(echo "$LD_LIBRARY_PATH" | tr ":" "\n")
+  opt_lib=/opt/lib
+  dirs=${dirs[@]/$opt_lib/}
+  for dir in $dirs; do
+    echo "$dir"
+    for lib in $(ls /opt/lib); do
+      if [ -f "$dir/$lib" ]; then
+        echo "rm /opt/lib/$lib because already exists in $dir/$lib"
+        rm -rf "/opt/lib/$lib"
+      fi
+    done
+  done
+}
+
+php_zip_layer() {
+  echo "zip starting..."
+  mv /opt/php/bin/php /tmp/php
+  cd /opt
+  zip --quiet --recurse-paths /layer.zip .
+  mv /tmp/php /opt/php/bin/php
+  echo "Lambda Layer file is $(du -sh /layer.zip)"
+}
+
+nginx_zip_layer() {
+  echo "zip starting..."
+  cd /opt
+  zip --quiet --recurse-paths /layer.zip .
+  echo "Lambda Layer file is $(du -sh /layer.zip)"
+}
+
+php_enable_extensions() {
+
+  echo 'Enable Extensions'
+  mkdir -p /opt/php/php.d/
+
+  extension_arr=()
+  extension_zend=()
+  extension_arr_last=()
+
+  for so in $(ls /opt/php/extensions/*.so); do
+    if readelf --wide --syms $so | grep -q ' zend_extension_entry$'; then
+      extension_zend+=("zend_extension=$so")
+    else
+      if [ "$so" == "/opt/php/extensions/mysqli.so" ]; then
+        extension_arr_last+=("extension=$so")
+      else
+        extension_arr+=("extension=$so")
+      fi
+    fi
+  done
+
+  echo "extension_dir=/opt/php/extensions" >/opt/php/php.d/extensions.ini
+  echo ${extension_arr[*]} | tr ' ' '\n' | sort -n >>/opt/php/php.d/extensions.ini
+  echo ${extension_arr_last[*]} | tr ' ' '\n' | sort -n >>/opt/php/php.d/extensions.ini
+  echo ${extension_zend[*]} | tr ' ' '\n' | sort -n >>/opt/php/php.d/extensions.ini
+
+  cat /opt/php/php.d/extensions.ini
+}
+
+php_disable() {
+  mkdir -p /tmp/extensions
+
+  for extension in "${@:2}"; do
+    rm -rf /opt/php/extensions/$extension*
+  done
+}
+
+php_install() {
+  for extension in "${@:2}"; do
+    pecl install $extension
+  done
+}
+
+change_ext_dir() {
+  echo 'Change Extensions Dir'
+
+  extension_dir=$(php-config --extension-dir)
+  mv $extension_dir /opt/php/extensions
+  ln -s /opt/php/extensions $extension_dir
+}
+
+case "$1" in
+
+php_enable_extensions)
+  php_enable_extensions
+  ;;
+
+php_disable)
+  php_disable "$@"
+  ;;
+
+php_install)
+  php_install "$@"
+  ;;
+
+change_ext_dir)
+  change_ext_dir
+  ;;
+
+php_copy_libs)
+  php_copy_libs
+  ;;
+
+copy_libs)
+  copy_libs "$2"
+  ;;
+
+clean_libs)
+  clean_libs
+  ;;
+
+php_zip_layer)
+  php_zip_layer
+  ;;
+
+nginx_zip_layer)
+  nginx_zip_layer
+  ;;
+
+php_release)
+  php_enable_extensions
+  php_copy_libs
+  rm -rf /opt/php/bin/pear
+  rm -rf /opt/php/bin/peardev
+  rm -rf /opt/php/bin/pecl
+  rm -rf /opt/php/bin/phar
+  rm -rf /opt/php/bin/phar.phar
+  rm -rf /opt/php/bin/php-cgi
+  rm -rf /opt/php/bin/php-config
+  rm -rf /opt/php/bin/phpdbg
+  rm -rf /opt/php/bin/phpize
+  rm -rf /opt/php/include
+  rm -rf /opt/php/lib
+  rm -rf /opt/php/php
+  rm -rf /opt/php/etc/pear.conf
+  rm -rf /opt/php/etc/php-fpm.conf.default
+  rm -rf /opt/php/etc/php-fpm.d
+  rm -rf /opt/nginx/html
+  ;;
+
+*)
+  usage
+  ;;
+
+esac
