@@ -1,5 +1,3 @@
-ARG IMAGE
-ARG TAG
 ARG DEVEL_TAG
 ARG ARCH
 
@@ -29,9 +27,6 @@ RUN /lambda-runtime php_disable shmop \
     /lambda-runtime php_release
 
 FROM al2
-
-ENV IMAGE=$IMAGE
-ENV TAG=$TAG
 
 COPY --from=builder /opt            /opt
 COPY --from=builder /lambda-runtime /lambda-runtime
@@ -64,4 +59,6 @@ RUN for lib in $(ls /opt/lib); do \
       fi ; \
     done
 
-RUN /lambda-runtime zip_layer
+RUN /lambda-runtime php_zip_layer
+
+ENTRYPOINT /bin/mv

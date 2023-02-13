@@ -1,5 +1,3 @@
-ARG IMAGE
-ARG TAG
 ARG DEVEL_TAG
 
 FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.6.1 AS adapter
@@ -23,9 +21,6 @@ RUN /lambda-runtime php_disable shmop \
     /lambda-runtime php_release
 
 FROM public.ecr.aws/lambda/provided:al2
-
-ENV IMAGE=$IMAGE
-ENV TAG=$TAG
 
 COPY --from=builder /lambda-runtime /lambda-runtime
 COPY --from=builder /opt            /opt

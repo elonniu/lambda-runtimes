@@ -1,5 +1,3 @@
-ARG IMAGE
-ARG TAG
 ARG DEVEL_TAG
 
 FROM public.ecr.aws/awsguru/devel AS devel
@@ -11,9 +9,6 @@ FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.6.1 AS adapter
 FROM public.ecr.aws/awsguru/nginx:$DEVEL_TAG AS nginx
 
 FROM al2
-
-ENV IMAGE=$IMAGE
-ENV TAG=$TAG
 
 COPY --from=nginx   /opt            /opt
 COPY --from=adapter /lambda-adapter /opt/extensions/
@@ -46,4 +41,6 @@ RUN for lib in $(ls /opt/lib); do \
       fi ; \
     done
 
-RUN /lambda-runtime zip_layer
+RUN /lambda-runtime nginx_zip_layer
+
+ENTRYPOINT /bin/mv

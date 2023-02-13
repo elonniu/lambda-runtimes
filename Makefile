@@ -58,6 +58,7 @@ devel:
 					  devel-php-80-fpm-nginx \
 					  devel-php-81-fpm-nginx \
 					  devel-php-82-fpm-nginx \
+					  devel-php-82-static-fpm-nginx \
 					  devel-nginx
 	docker-compose down
 
@@ -66,6 +67,7 @@ prod:
 					  php-80-fpm-nginx \
 					  php-81-fpm-nginx \
 					  php-82-fpm-nginx \
+					  php-82-static-fpm-nginx \
                       nginx
 	docker-compose down
 
@@ -81,11 +83,11 @@ clean:
 
 php:
 	ARCH=x86_64 IMAGE=php-beta TAG=local ./artisan tests_run
-	ARCH=x86_64 IMAGE=php TAG=layer.74.2023.2.11.2 ./artisan tests_run
+	ARCH=x86_64 IMAGE=php TAG=layer.74.2023.2.13.1 ./artisan tests_run
 
 nginx:
-	ARCH=x86_64 IMAGE=nginx TAG=devel.1.23.2023.2.11.2 ./artisan tests_run
-	ARCH=x86_64 IMAGE=nginx TAG=layer.1.23.2023.2.11.2 ./artisan tests_run
+	ARCH=x86_64 IMAGE=nginx TAG=devel.1.23.2023.2.13.1 ./artisan tests_run
+	ARCH=x86_64 IMAGE=nginx TAG=layer.1.23.2023.2.13.1 ./artisan tests_run
 
 build:
 	docker stop beta_local || true && docker rm beta_local || true
@@ -95,7 +97,7 @@ build:
 			     --build-arg ARCH=x86_64 \
 			     --build-arg IMAGE=php-beta \
 			     --build-arg TAG=local \
-			     --build-arg DEVEL_TAG=devel.2023.2.11.2 \
+			     --build-arg DEVEL_TAG=devel.2023.2.13.1 \
 			     --tag public.ecr.aws/awsguru/php-beta:local-x86_64 \
 			     --file ./src/php-beta-fpm-nginx/prod.Dockerfile
 	docker run -it --name beta_local -p 127.0.0.1:8001:8080/tcp public.ecr.aws/awsguru/php-beta:local-x86_64 bash
