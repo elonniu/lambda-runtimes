@@ -22,7 +22,6 @@ php_copy_libs() {
     copy_libs "$file"
   done
 
-  copy_libs /opt/nginx/bin/nginx
   copy_libs /opt/php/bin/php
   copy_libs /opt/php/bin/php-fpm
 }
@@ -53,12 +52,19 @@ clean_libs() {
   done
 }
 
-zip_layer() {
+php_zip_layer() {
   echo "zip starting..."
   mv /opt/php/bin/php /tmp/php
   cd /opt
   zip --quiet --recurse-paths /layer.zip .
   mv /tmp/php /opt/php/bin/php
+  echo "Lambda Layer file is $(du -sh /layer.zip)"
+}
+
+nginx_zip_layer() {
+  echo "zip starting..."
+  cd /opt
+  zip --quiet --recurse-paths /layer.zip .
   echo "Lambda Layer file is $(du -sh /layer.zip)"
 }
 
@@ -105,6 +111,14 @@ php_install() {
   done
 }
 
+change_ext_dir() {
+  echo 'Change Extensions Dir'
+
+  extension_dir=$(php-config --extension-dir)
+  mv $extension_dir /opt/php/extensions
+  ln -s /opt/php/extensions $extension_dir
+}
+
 case "$1" in
 
 php_enable_extensions)
@@ -119,6 +133,10 @@ php_install)
   php_install "$@"
   ;;
 
+change_ext_dir)
+  change_ext_dir
+  ;;
+
 php_copy_libs)
   php_copy_libs
   ;;
@@ -131,8 +149,12 @@ clean_libs)
   clean_libs
   ;;
 
-zip_layer)
-  zip_layer
+php_zip_layer)
+  php_zip_layer
+  ;;
+
+nginx_zip_layer)
+  nginx_zip_layer
   ;;
 
 php_release)
