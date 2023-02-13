@@ -1,6 +1,3 @@
-ARG IMAGE
-ARG TAG
-
 FROM public.ecr.aws/awsguru/devel
 
 COPY --from=public.ecr.aws/awsguru/nginx /opt /opt
@@ -10,13 +7,13 @@ COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 COPY lambda-runtime /
 
 ENV PHP_VERSION="8.1.14"
-ENV IMAGE=$IMAGE
-ENV TAG=$TAG
 
 RUN cd /tmp && \
     curl -O https://www.php.net/distributions/php-$PHP_VERSION.tar.gz && \
     tar -zxf php-$PHP_VERSION.tar.gz && \
     cd php-$PHP_VERSION && \
+    git clone https://github.com/phpredis/phpredis.git && \
+    mv phpredis ext/redis && \
     ./buildconf --force && \
     ./configure \
       --prefix=/opt/php \
@@ -83,6 +80,7 @@ RUN cd /tmp && \
       --enable-intl=shared \
       --with-pdo-pgsql=shared \
       --with-pgsql=shared \
+      --enable-redis=shared \
       && \
     make -j$(cat /proc/cpuinfo | grep "processor" | wc -l) && \
     make install && \
@@ -92,24 +90,12 @@ RUN cd /tmp && \
     \
     ln -s /opt/nginx/bin/nginx /usr/bin && \
     \
-    echo 'Change Extensions Dir' && \
-    extension_dir=$(php-config --extension-dir) && \
-    mv $extension_dir /opt/php/extensions && \
-    ln -s /opt/php/extensions $extension_dir && \
-    \
+    /lambda-runtime change_ext_dir && \
     /lambda-runtime php_enable_extensions && \
     \
     yes | pecl install -f igbinary && \
     pecl install -f imagick && \
     pecl install -f libsodium && \
-    \
-    cd /tmp && \
-    git clone https://github.com/phpredis/phpredis.git && \
-    cd phpredis &&  \
-    phpize && \
-    ./configure && \
-    make -j$(cat /proc/cpuinfo | grep "processor" | wc -l) && \
-    make install && \
     \
     cd /tmp && \
     git clone --recursive https://github.com/awslabs/aws-crt-php.git && \

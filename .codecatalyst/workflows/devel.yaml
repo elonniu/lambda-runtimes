@@ -1,6 +1,5 @@
 Name: devel
-#RunMode: SUPERSEDED
-RunMode: PARALLEL
+RunMode: SUPERSEDED
 SchemaVersion: "1.0"
 Triggers:
   - Type: PUSH
@@ -21,13 +20,12 @@ Actions:
         ReportNamePrefix: rpt
     Configuration:
       Steps:
-        - Run: export VERSION=2023.2.5.5
         - Run: export DOCKER_USER_NAME=${Secrets.DOCKER_USER_NAME}
         - Run: export DOCKER_PASSWORD=${Secrets.DOCKER_PASSWORD}
         - Run: export SLACK_URL=${Secrets.SLACK_URL}
         - Run: export SRC=src/devel
         - Run: export IMAGE=devel
-        - Run: export TAG=2023.2.5.5
+        - Run: export TAG=2023.2.13.1
         - Run: export DOCKER_FILE=Dockerfile
         - Run: export MANIFEST=TRUE
         - Run: . ./artisan publish_image x86_64

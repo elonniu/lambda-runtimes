@@ -3,11 +3,7 @@ FROM public.ecr.aws/lambda/provided:al2
 COPY lambda-runtime /
 
 ARG ARCH
-ARG IMAGE
-ARG TAG
 
-ENV IMAGE=$IMAGE
-ENV TAG=$TAG
 ENV OPENSSL_VERSION="1.1.1p"
 ENV PCRE2_VERSION="10.40"
 ENV ZLIB_VERSION="1.2.13"
