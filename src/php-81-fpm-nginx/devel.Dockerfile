@@ -1,10 +1,8 @@
 FROM public.ecr.aws/awsguru/devel
 
 COPY --from=public.ecr.aws/awsguru/nginx /opt /opt
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.6.1 /lambda-adapter /opt/extensions/
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.6.2 /lambda-adapter /opt/extensions/
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
-
-COPY lambda-runtime /
 
 ENV PHP_VERSION="8.1.14"
 
@@ -96,6 +94,7 @@ RUN cd /tmp && \
     yes | pecl install -f igbinary && \
     pecl install -f imagick && \
     pecl install -f libsodium && \
+    pecl install -f memcached && \
     \
     cd /tmp && \
     git clone --recursive https://github.com/awslabs/aws-crt-php.git && \

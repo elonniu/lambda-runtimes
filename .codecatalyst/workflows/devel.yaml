@@ -25,7 +25,7 @@ Actions:
         - Run: export SLACK_URL=${Secrets.SLACK_URL}
         - Run: export SRC=src/devel
         - Run: export IMAGE=devel
-        - Run: export TAG=2023.2.13.1
+        - Run: export TAG=2023.2.27.1
         - Run: export DOCKER_FILE=Dockerfile
         - Run: export MANIFEST=TRUE
         - Run: . ./artisan publish_image x86_64

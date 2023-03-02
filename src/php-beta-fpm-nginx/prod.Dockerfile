@@ -1,10 +1,8 @@
 ARG DEVEL_TAG
 ARG ARCH
 
-FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.6.1 AS adapter
+FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.6.2 AS adapter
 FROM public.ecr.aws/awsguru/php-beta:$DEVEL_TAG-$ARCH AS builder
-
-COPY lambda-runtime /
 
 # Your builders code here
 # You can install or disable some extensions

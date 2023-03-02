@@ -5,10 +5,8 @@ FROM public.ecr.aws/lambda/provided:al2 AS al2
 FROM public.ecr.aws/lambda/provided AS provided
 FROM public.ecr.aws/lambda/java:11 AS java11
 FROM public.ecr.aws/sam/emulation-java11 AS emulation
-FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.6.1 AS adapter
+FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.6.2 AS adapter
 FROM public.ecr.aws/awsguru/php:$DEVEL_TAG AS builder
-
-COPY lambda-runtime /
 
 # Your builders code here
 # You can install or disable some extensions
@@ -49,5 +47,3 @@ RUN for lib in $(ls /opt/lib); do \
     done
 
 RUN /lambda-runtime php_zip_layer
-
-ENTRYPOINT /bin/mv
