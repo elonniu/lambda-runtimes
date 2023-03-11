@@ -129,6 +129,7 @@ publish_layer() {
   ARCH=$1
 
   docker run --volume /tmp/:/tmp/ \
+    --platform linux/$ARCH \
     --entrypoint /bin/mv \
     public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH /layer.zip /tmp/$LAYER_NAME.zip
 
@@ -174,6 +175,7 @@ tests_layer_size() {
   LAYER_FILE=$IMAGE:$TAG-$ARCH
 
   docker run --volume /tmp/:/tmp/ \
+    --platform linux/$ARCH \
     --entrypoint /bin/mv \
     public.ecr.aws/awsguru/$IMAGE:$TAG-$ARCH /layer.zip /tmp/$LAYER_FILE.zip
 
