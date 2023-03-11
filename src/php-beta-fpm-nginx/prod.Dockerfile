@@ -1,7 +1,7 @@
 ARG DEVEL_TAG
 ARG ARCH
 
-FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.6.2 AS adapter
+FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.6.3 AS adapter
 FROM public.ecr.aws/awsguru/php-beta:$DEVEL_TAG-$ARCH AS builder
 
 # Your builders code here
