@@ -4,7 +4,7 @@ SchemaVersion: "1.0"
 Triggers:
   - Type: PUSH
     Branches:
-      - dev
+      - main
 Compute:
   Type: EC2
   Fleet: Linux.x86-64.2XLarge
@@ -62,7 +62,7 @@ Actions:
         - Run: export SLACK_URL=${Secrets.SLACK_URL}
         - Run: export IMAGE=php
         - Run: export TAG=layer.82.2023.3.11.1
-        - Run: export LAYER_VERSION=11
+        - Run: export LAYER_VERSION=12
         - Run: export LAYER_NAME=Php82FpmNginxX86
         - Run: . ./artisan publish_layer x86_64
         - Run: export LAYER_NAME=Php82FpmNginxArm
