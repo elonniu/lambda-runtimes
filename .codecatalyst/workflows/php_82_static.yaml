@@ -4,10 +4,10 @@ SchemaVersion: "1.0"
 Triggers:
   - Type: PUSH
     Branches:
-      - main
+      - dev
 Compute:
   Type: EC2
-  Fleet: build_servers
+  Fleet: Linux.x86-64.2XLarge
 Actions:
   publish_image:
     Identifier: aws/build@v1
