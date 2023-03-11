@@ -1,7 +1,7 @@
 ARG DEVEL_TAG
 
 FROM public.ecr.aws/awsguru/devel AS devel
-FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.6.2 AS adapter
+FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.6.3 AS adapter
 FROM public.ecr.aws/awsguru/nginx:$DEVEL_TAG AS nginx
 
 FROM public.ecr.aws/lambda/provided:al2

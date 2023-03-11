@@ -1,7 +1,7 @@
 FROM public.ecr.aws/awsguru/devel
 
 COPY --from=public.ecr.aws/awsguru/nginx /opt /opt
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.6.2 /lambda-adapter /opt/extensions/
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.6.3 /lambda-adapter /opt/extensions/
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
 ENV PHP_VERSION="8.0.27"
