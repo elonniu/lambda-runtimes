@@ -1,6 +1,6 @@
 FROM public.ecr.aws/awsguru/devel
 
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.6.1 /lambda-adapter /opt/extensions/
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.6.3 /lambda-adapter /opt/extensions/
 
 ENV NGINX_VERSION="1.23.3"
 

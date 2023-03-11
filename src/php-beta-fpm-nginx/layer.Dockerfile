@@ -6,7 +6,7 @@ FROM public.ecr.aws/lambda/provided:al2 AS al2
 FROM public.ecr.aws/lambda/provided AS provided
 FROM public.ecr.aws/lambda/java:11 AS java11
 FROM public.ecr.aws/sam/emulation-java11 AS emulation
-FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.6.1 AS adapter
+FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.6.3 AS adapter
 FROM public.ecr.aws/awsguru/php-beta:$DEVEL_TAG-$ARCH AS builder
 
 COPY lambda-runtime /
