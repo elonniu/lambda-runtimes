@@ -1,6 +1,6 @@
 FROM public.ecr.aws/lambda/provided:al2
 
-COPY lambda-runtime /
+COPY lambda-layer /
 
 ARG ARCH
 
