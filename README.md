@@ -1,4 +1,4 @@
-# AWS Lambda Custom Runtimes
+# AWS Lambda Custom Layers
 
 The goal of this repository is to support more and more programming languages.
 
