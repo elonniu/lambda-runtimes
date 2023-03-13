@@ -13,7 +13,7 @@ Actions:
     Identifier: aws/build@v1
     Inputs:
       Sources:
-        - WorkflowSource
+        - WorkflowSource3
     Outputs:
       AutoDiscoverReports:
         Enabled: false

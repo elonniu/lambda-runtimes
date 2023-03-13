@@ -182,7 +182,7 @@ tests_layer_size() {
 
   aws s3api put-object \
     --region=us-west-2 \
-    --bucket lambda-runtimes-layers \
+    --bucket lambda-layers-layers \
     --key "$LAYER_FILE.zip" \
     --body /tmp/$LAYER_FILE.zip
 

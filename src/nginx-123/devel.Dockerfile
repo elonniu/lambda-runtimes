@@ -26,7 +26,7 @@ RUN cd /tmp \
        --with-openssl=../openssl-${OPENSSL_VERSION} \
     && make -j$(cat /proc/cpuinfo | grep "processor" | wc -l) \
     && make install --silent \
-    && /lambda-runtime copy_libs /opt/nginx/bin/nginx \
+    && /lambda-layer copy_libs /opt/nginx/bin/nginx \
     && ln -s /opt/nginx/bin/nginx /usr/bin \
     && yum clean all \
     && rm -rf /var/cache/yum \

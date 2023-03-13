@@ -12,22 +12,22 @@ FROM public.ecr.aws/awsguru/php-beta:$DEVEL_TAG-$ARCH AS builder
 # Your builders code here
 # You can install or disable some extensions
 # RUN pecl install intl
-RUN /lambda-runtime php_disable shmop \
-                                calendar \
-                                xmlrpc \
-                                sysvsem \
-                                sysvshm \
-                                pdo_pgsql \
-                                pgsql \
-                                bz2 \
-                                intl \
-                                && \
-    /lambda-runtime php_release
+RUN /lambda-layer php_disable shmop \
+                              calendar \
+                              xmlrpc \
+                              sysvsem \
+                              sysvshm \
+                              pdo_pgsql \
+                              pgsql \
+                              bz2 \
+                              intl \
+                              && \
+    /lambda-layer php_release
 
 FROM al2
 
 COPY --from=builder /opt            /opt
-COPY --from=builder /lambda-runtime /lambda-runtime
+COPY --from=builder /lambda-layer   /lambda-layer
 COPY --from=builder /usr/bin/zip    /usr/bin/zip
 COPY --from=adapter /lambda-adapter /opt/extensions/
 
@@ -57,4 +57,4 @@ RUN for lib in $(ls /opt/lib); do \
       fi ; \
     done
 
-RUN /lambda-runtime php_zip_layer
+RUN /lambda-layer php_zip_layer

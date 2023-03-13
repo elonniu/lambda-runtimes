@@ -8,7 +8,7 @@ services:
 
   devel-nginx:
     container_name: devel-nginx
-    image: public.ecr.aws/awsguru/nginx:devel.1.23.2023.3.11.1
+    image: public.ecr.aws/awsguru/nginx:devel.1.23.2023.3.13.1
     environment:
       PORT: 8080
       AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap
@@ -21,7 +21,7 @@ services:
 
   devel-php-74-fpm-nginx:
     container_name: devel-php-74-fpm-nginx
-    image: public.ecr.aws/awsguru/php:devel.74.2023.3.11.1
+    image: public.ecr.aws/awsguru/php:devel.74.2023.3.13.1
     environment:
       PORT: 8080
     ports:
@@ -36,7 +36,7 @@ services:
 
   devel-php-80-fpm-nginx:
     container_name: devel-php-80-fpm-nginx
-    image: public.ecr.aws/awsguru/php:devel.80.2023.3.11.1
+    image: public.ecr.aws/awsguru/php:devel.80.2023.3.13.1
     environment:
       PORT: 8080
     ports:
@@ -51,7 +51,7 @@ services:
 
   devel-php-81-fpm-nginx:
     container_name: devel-php-81-fpm-nginx
-    image: public.ecr.aws/awsguru/php:devel.81.2023.3.11.1
+    image: public.ecr.aws/awsguru/php:devel.81.2023.3.13.1
     environment:
       PORT: 8080
     ports:
@@ -66,7 +66,7 @@ services:
 
   devel-php-82-fpm-nginx:
     container_name: devel-php-82-fpm-nginx
-    image: public.ecr.aws/awsguru/php:devel.82.2023.3.11.1
+    image: public.ecr.aws/awsguru/php:devel.82.2023.3.13.1
     environment:
       PORT: 8080
     ports:
@@ -81,7 +81,7 @@ services:
 
   devel-php-82-static-fpm-nginx:
     container_name: devel-php-82-static-fpm-nginx
-    image: public.ecr.aws/awsguru/php:devel.82.static.2023.3.11.1-x86_64
+    image: public.ecr.aws/awsguru/php:devel.82.static.2023.3.13.1-x86_64
     environment:
       PORT: 8080
     ports:
@@ -108,7 +108,7 @@ services:
 
   php-74-fpm-nginx:
     container_name: php-74-fpm-nginx
-    image: public.ecr.aws/awsguru/php:74.2023.3.11.1
+    image: public.ecr.aws/awsguru/php:74.2023.3.13.1
     environment:
       PORT: 8080
     ports:
@@ -122,7 +122,7 @@ services:
 
   php-80-fpm-nginx:
     container_name: php-80-fpm-nginx
-    image: public.ecr.aws/awsguru/php:80.2023.3.11.1
+    image: public.ecr.aws/awsguru/php:80.2023.3.13.1
     environment:
       PORT: 8080
     ports:
@@ -136,7 +136,7 @@ services:
 
   php-81-fpm-nginx:
     container_name: php-81-fpm-nginx
-    image: public.ecr.aws/awsguru/php:81.2023.3.11.1
+    image: public.ecr.aws/awsguru/php:81.2023.3.13.1
     environment:
       PORT: 8080
     ports:
@@ -150,7 +150,7 @@ services:
 
   php-82-fpm-nginx:
     container_name: php-82-fpm-nginx
-    image: public.ecr.aws/awsguru/php:82.2023.3.11.1
+    image: public.ecr.aws/awsguru/php:82.2023.3.13.1
     environment:
       PORT: 8080
     ports:
@@ -164,7 +164,7 @@ services:
 
   php-82-static-fpm-nginx:
     container_name: php-82-static-fpm-nginx
-    image: public.ecr.aws/awsguru/php:82.static.2023.3.11.1
+    image: public.ecr.aws/awsguru/php:82.static.2023.3.13.1
     environment:
       PORT: 8080
     ports:
@@ -178,7 +178,7 @@ services:
 
   php-beta-fpm-nginx:
     container_name: php-beta-fpm-nginx
-    image: public.ecr.aws/awsguru/php-beta:2023.3.11.1-x86_64
+    image: public.ecr.aws/awsguru/php-beta:2023.3.13.1-x86_64
     environment:
       PORT: 8080
     entrypoint: /opt/bootstrap

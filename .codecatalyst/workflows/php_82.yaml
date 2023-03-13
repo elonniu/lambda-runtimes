@@ -27,18 +27,18 @@ Actions:
         - Run: export IMAGE=php
         #
         - Run: export DOCKER_FILE=devel.Dockerfile
-        - Run: export TAG=devel.82.2023.3.11.1
-        - Run: export DEVEL_TAG=devel.82.2023.3.11.1
+        - Run: export TAG=devel.82.2023.3.13.1
+        - Run: export DEVEL_TAG=devel.82.2023.3.13.1
         - Run: . ./artisan publish_image x86_64
         - Run: . ./artisan publish_image arm64
         #
         - Run: export DOCKER_FILE=layer.Dockerfile
-        - Run: export TAG=layer.82.2023.3.11.1
+        - Run: export TAG=layer.82.2023.3.13.1
         - Run: . ./artisan publish_image x86_64
         - Run: . ./artisan publish_image arm64
         #
         - Run: export DOCKER_FILE=prod.Dockerfile
-        - Run: export TAG=82.2023.3.11.1
+        - Run: export TAG=82.2023.3.13.1
         - Run: . ./artisan publish_image x86_64
         - Run: . ./artisan publish_image arm64 manifest
     Environment:
@@ -61,7 +61,7 @@ Actions:
       Steps:
         - Run: export SLACK_URL=${Secrets.SLACK_URL}
         - Run: export IMAGE=php
-        - Run: export TAG=layer.82.2023.3.11.1
+        - Run: export TAG=layer.82.2023.3.13.1
         - Run: export LAYER_VERSION=12
         - Run: export LAYER_NAME=Php82FpmNginxX86
         - Run: . ./artisan publish_layer x86_64

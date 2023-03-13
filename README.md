@@ -6,11 +6,11 @@ The goal of this repository is to support more and more programming languages.
 
 | Custom Runtime | Version | Latest Docker Version                         |
 |----------------|---------|-----------------------------------------------|
-| Nginx          | 1.23    | public.ecr.aws/awsguru/nginx:1.23.2023.3.11.1 |
-| PHP            | 8.2     | public.ecr.aws/awsguru/php:82.2023.3.11.1     |
-| PHP            | 8.1     | public.ecr.aws/awsguru/php:81.2023.3.11.1     |
-| PHP            | 8.0     | public.ecr.aws/awsguru/php:80.2023.3.11.1     |
-| PHP            | 7.4     | public.ecr.aws/awsguru/php:74.2023.3.11.1     |
+| Nginx          | 1.23    | public.ecr.aws/awsguru/nginx:1.23.2023.3.13.1 |
+| PHP            | 8.2     | public.ecr.aws/awsguru/php:82.2023.3.13.1     |
+| PHP            | 8.1     | public.ecr.aws/awsguru/php:81.2023.3.13.1     |
+| PHP            | 8.0     | public.ecr.aws/awsguru/php:80.2023.3.13.1     |
+| PHP            | 7.4     | public.ecr.aws/awsguru/php:74.2023.3.13.1     |
 
 ### Supported Zip Layers
 
