@@ -82,12 +82,12 @@ clean:
 	docker builder prune -f
 
 php:
-	ARCH=x86_64 IMAGE=php-beta TAG=devel.2023.3.11.1 ./artisan tests_run
-	#ARCH=x86_64 IMAGE=php-beta TAG=layer.74.2023.3.11.1 ./artisan tests_run
+	ARCH=x86_64 IMAGE=php-beta TAG=devel.2023.3.13.1 ./artisan tests_run
+	#ARCH=x86_64 IMAGE=php-beta TAG=layer.74.2023.3.13.1 ./artisan tests_run
 
 nginx:
-	ARCH=x86_64 IMAGE=nginx TAG=devel.1.23.2023.3.11.1 ./artisan tests_run
-	ARCH=x86_64 IMAGE=nginx TAG=layer.1.23.2023.3.11.1 ./artisan tests_run
+	ARCH=x86_64 IMAGE=nginx TAG=devel.1.23.2023.3.13.1 ./artisan tests_run
+	ARCH=x86_64 IMAGE=nginx TAG=layer.1.23.2023.3.13.1 ./artisan tests_run
 
 build:
 	docker stop beta_local || true && docker rm beta_local || true
@@ -97,7 +97,7 @@ build:
 			     --build-arg ARCH=x86_64 \
 			     --build-arg IMAGE=php-beta \
 			     --build-arg TAG=local \
-			     --build-arg DEVEL_TAG=devel.2023.3.11.1 \
+			     --build-arg DEVEL_TAG=devel.2023.3.13.1 \
 			     --tag public.ecr.aws/awsguru/php-beta:local-x86_64 \
 			     --file ./src/php-beta-fpm-nginx/prod.Dockerfile
 	docker run -it --name beta_local -p 127.0.0.1:8001:8080/tcp public.ecr.aws/awsguru/php-beta:local-x86_64 bash

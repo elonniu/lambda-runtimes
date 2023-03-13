@@ -104,8 +104,8 @@ RUN cd /tmp && \
     \
     ln -s /opt/nginx/bin/nginx /usr/bin && \
     \
-    /lambda-runtime change_ext_dir && \
-    /lambda-runtime php_enable_extensions && \
+    /lambda-layer change_ext_dir && \
+    /lambda-layer php_enable_extensions && \
     \
     cd /tmp && \
     git clone --recursive https://github.com/awslabs/aws-crt-php.git && \
@@ -115,8 +115,8 @@ RUN cd /tmp && \
     make -j$(cat /proc/cpuinfo | grep "processor" | wc -l) && \
     make install && \
     \
-    /lambda-runtime php_enable_extensions && \
-    /lambda-runtime php_copy_libs && \
+    /lambda-layer php_enable_extensions && \
+    /lambda-layer php_copy_libs && \
     \
     echo 'Clean Cache' && \
     yum clean all && \

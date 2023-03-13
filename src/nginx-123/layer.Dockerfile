@@ -12,7 +12,7 @@ FROM al2
 
 COPY --from=nginx   /opt            /opt
 COPY --from=adapter /lambda-adapter /opt/extensions/
-COPY --from=devel   /lambda-runtime /lambda-runtime
+COPY --from=devel   /lambda-layer   /lambda-layer
 COPY --from=devel   /usr/bin/zip    /usr/bin/zip
 
 COPY --from=al2      /lib64       /libs/al2
@@ -41,4 +41,4 @@ RUN for lib in $(ls /opt/lib); do \
       fi ; \
     done
 
-RUN /lambda-runtime nginx_zip_layer
+RUN /lambda-layer nginx_zip_layer
